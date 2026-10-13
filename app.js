@@ -251,10 +251,6 @@ function loadArticleStats() {
   return TypingModel.articleStatsFromStorage(readJson(keysFor(currentId()).stats, { byId: {} }));
 }
 
-function currentTitle() {
-  return state.articles[state.articleIndex]?.title || "";
-}
-
 function cumulativeReview() {
   const counts = loadCumulative();
   const stat = loadArticleStats().byId[currentId()];
@@ -455,6 +451,7 @@ function startTimer() {
 function applyArticle(index) {
   state.articleIndex = index;
   state.input = "";
+  measureLine();
   clearPractice();
   loadReviewSnapshot();
   const built = layout(state.articles[index].content, state.lineMax);
@@ -791,6 +788,7 @@ function switchMode(mode) {
   if (state.mode === mode) return;
   state.mode = mode;
   state.input = "";
+  measureLine();
   clearPractice();
   startTimer();
   render();
@@ -798,6 +796,7 @@ function switchMode(mode) {
 
 function resetArticle() {
   state.input = "";
+  measureLine();
   clearPractice();
   startTimer();
   render();
@@ -805,6 +804,7 @@ function resetArticle() {
 
 function discardAndReset() {
   state.input = "";
+  measureLine();
   clearPractice();
   state.exitOpen = false;
   startTimer();

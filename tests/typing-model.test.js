@@ -137,9 +137,12 @@ test("custom ids increase and storage keys use the article id", () => {
   });
 });
 
-test("old title-keyed stats are ignored", () => {
+test("old title-keyed stats are ignored (legacy fields are preserved and not used)", () => {
   assert.deepEqual(model.articleStatsFromStorage(null), { byId: {} });
-  assert.deepEqual(model.articleStatsFromStorage({ byTitle: { Morning: {} } }), { byId: {} });
+  assert.deepEqual(model.articleStatsFromStorage([]), { byId: {} });
+  assert.deepEqual(model.articleStatsFromStorage("x"), { byId: {} });
+  assert.deepEqual(model.articleStatsFromStorage({ byTitle: { Morning: {} } }), { byTitle: { Morning: {} }, byId: {} });
+  assert.deepEqual(model.articleStatsFromStorage({ byId: [] }), { byId: {} });
   const kept = { byId: { "morning-platform": { practiceCount: 1 } } };
   assert.deepEqual(model.articleStatsFromStorage(kept), kept);
 });

@@ -164,10 +164,11 @@
   }
 
   function articleStatsFromStorage(raw) {
-    if (!raw || typeof raw !== "object" || !raw.byId || typeof raw.byId !== "object") {
+    if (!raw || typeof raw !== "object" || Array.isArray(raw)) {
       return { byId: {} };
     }
-    return { byId: raw.byId };
+    const byId = raw.byId && typeof raw.byId === "object" && !Array.isArray(raw.byId) ? raw.byId : {};
+    return { ...raw, byId };
   }
 
   function writeJson(storage, key, value) {
