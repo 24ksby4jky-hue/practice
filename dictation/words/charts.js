@@ -553,12 +553,12 @@
         { word: "peak-to-trough", pos: "adj.", phonetic: "/ˌpiːk tə ˈtrɒf/", meaning: "峰谷间的", example: "The peak-to-trough fall was ten per cent." },
         { word: "meander", pos: "v.", phonetic: "/miˈændə/", meaning: "蜿蜒前行", example: "The line will meander across the chart." },
         { word: "sparkline", pos: "n.", phonetic: "/ˈspɑːklaɪn/", meaning: "迷你折线图", example: "Each sparkline shows one year of sales." },
-        { word: "percentile", pos: "n.", phonetic: "/pəˈsentaɪl/", meaning: "百分位数", example: "Her score fell in the ninetieth percentile." },
+        { word: "parabola", pos: "n.", phonetic: "/pəˈræbələ/", meaning: "抛物线", example: "The sales line rises and falls like a parabola." },
         { word: "decile", pos: "n.", phonetic: "/ˈdesaɪl/", meaning: "十分位数", example: "The top decile earns most of the total." },
         { word: "asymptote", pos: "n.", phonetic: "/ˈæsɪmptəʊt/", meaning: "渐近线", example: "The curve approaches an asymptote at one hundred." },
         { word: "vertex", pos: "n.", phonetic: "/ˈvɜːteks/", meaning: "顶点", example: "The vertex of the curve marks the peak year." },
         { word: "lateral", pos: "adj.", phonetic: "/ˈlætərəl/", meaning: "横向的", example: "The line shows lateral movement for months." },
-        { word: "downtick", pos: "n.", phonetic: "/ˈdaʊntɪk/", meaning: "小幅下滑", example: "There was a small downtick in June." }
+        { word: "concave", pos: "adj.", phonetic: "/kɒnˈkeɪv/", meaning: "凹形的", example: "The curve is concave in the first five years." }
       ] }
     ]
   };
