@@ -19,6 +19,43 @@ test("academic-writing unit 1 keeps the original six words in order", () => {
   ]);
 });
 
+test("academic-writing keeps one entry per word family and stays on topic and level", () => {
+  const words = new Set(board.units.flatMap((unit) => unit.words.map((entry) => entry.word)));
+  const offTopic = [
+    "clause", "copyright", "reprint", "ellipsis", "parenthesis", "bracket", "hyphen", "colon",
+    "semicolon", "apostrophe", "italic", "indent", "caption", "label", "preface", "afterword",
+    "style", "tone", "vivid", "wordy", "verbose", "succinct", "redundant", "repetitive",
+    "outline", "theme", "topic", "focus", "jargon", "coin", "digress",
+    "rarely", "seldom", "scarcely", "barely", "virtually", "strictly", "broadly", "narrowly",
+    "loosely", "merely", "solely", "exclusively"
+  ];
+  const tooBasicOrRare = [
+    "although", "unless", "despite", "besides", "throughout", "unlike", "beyond", "however",
+    "therefore", "thus", "hence", "wherever", "error", "apply", "judge", "article", "author",
+    "clue", "witness", "index", "degree", "extent", "briefly", "typically", "generally",
+    "particularly", "whilst", "albeit", "doubtless", "purportedly", "notwithstanding", "cogent",
+    "tenable", "monograph", "treatise", "relic", "remnant"
+  ];
+  const derivedForms = [
+    "partially", "citation", "quotation", "validate", "validity", "comparison", "comparable",
+    "assertion", "controversial", "contradiction", "inconsistent", "reliability", "credibility",
+    "persuasive", "hypothetical", "theoretical", "deduction", "statistical", "correlate",
+    "causal", "anecdote", "inaccurate", "investigation", "scrutiny", "evaluation",
+    "interpretation", "criticism", "criticize", "critic", "publish", "authoritative", "summary",
+    "attribution", "implication", "implicit", "significance", "insignificant", "signify",
+    "disprove", "proof", "comprise", "indication", "misrepresent", "documentary", "testify",
+    "verifiable", "quantify", "vary", "variation", "differentiate", "resemblance", "similarity",
+    "divergence", "alternative", "paradoxical", "ironic", "conclude", "conclusive",
+    "inconclusive", "resolution", "recommendation", "prediction", "generalization", "relevance",
+    "irrelevant", "applicable", "consequently", "ultimate", "reaffirm", "opposite", "coherence",
+    "ambiguity", "emphasis", "definition", "define", "evidently", "presumably", "arguably",
+    "primarily", "unquestionably"
+  ];
+  for (const word of [...offTopic, ...tooBasicOrRare, ...derivedForms]) {
+    assert.equal(words.has(word), false, `${word} should not be on this board`);
+  }
+});
+
 test("academic-writing does not reuse campus words and leaves out increase", () => {
   const campusWords = new Set(
     campus.units.flatMap((unit) => unit.words.map((entry) => entry.word.toLowerCase()))
