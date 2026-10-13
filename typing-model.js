@@ -145,7 +145,7 @@
   }
 
   function timedRemainSeconds(durationSeconds, elapsedMsValue) {
-    return Math.max(0, durationSeconds - Math.ceil(elapsedMsValue / 1000));
+    return Math.max(0, durationSeconds - Math.floor(elapsedMsValue / 1000));
   }
 
   function nextCustomId(serial) {

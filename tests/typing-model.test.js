@@ -120,7 +120,7 @@ test("resume only an in-progress free or timed session", () => {
 });
 
 test("remaining time reaches zero without going negative", () => {
-  assert.equal(model.timedRemainSeconds(60, 1500), 58);
+  assert.equal(model.timedRemainSeconds(60, 1500), 59);
   assert.equal(model.timedRemainSeconds(60, 60000), 0);
   assert.equal(model.timedRemainSeconds(60, 61000), 0);
 });
