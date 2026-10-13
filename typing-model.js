@@ -51,5 +51,47 @@
     };
   }
 
-  return { layout };
+  function wordCount(input) {
+    return input.trim() ? input.trim().split(/\s+/).filter(Boolean).length : 0;
+  }
+
+  function wpm(input, elapsedSecond) {
+    const elapsed = Math.floor(elapsedSecond);
+    if (!Number.isFinite(elapsed) || elapsed <= 0) return 0;
+    const words = wordCount(input);
+    if (words <= 0) return 0;
+    return Math.round(words / (elapsed / 60));
+  }
+
+  function emptyPracticeStat() {
+    return {
+      practiceCount: 0,
+      bestWpm: 0,
+      wpmSum: 0,
+      wpmSamples: 0,
+      bestAccuracy: 0,
+      accuracySum: 0
+    };
+  }
+
+  function applyPracticeStat(prev, sample) {
+    const base = prev || emptyPracticeStat();
+    const elapsed = Math.floor(sample.elapsedSecond);
+    const countWpm = Number.isFinite(elapsed) && elapsed >= 1;
+    return {
+      practiceCount: base.practiceCount + 1,
+      bestWpm: countWpm ? Math.max(base.bestWpm, sample.wpm) : base.bestWpm,
+      wpmSum: countWpm ? base.wpmSum + sample.wpm : base.wpmSum,
+      wpmSamples: countWpm ? base.wpmSamples + 1 : base.wpmSamples,
+      bestAccuracy: Math.max(base.bestAccuracy, sample.accuracy),
+      accuracySum: base.accuracySum + sample.accuracy
+    };
+  }
+
+  function averageWpm(stat) {
+    if (!stat || !stat.wpmSamples) return 0;
+    return Math.round(stat.wpmSum / stat.wpmSamples);
+  }
+
+  return { layout, wpm, emptyPracticeStat, applyPracticeStat, averageWpm };
 });
