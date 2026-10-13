@@ -71,7 +71,6 @@ const state = {
   wrongRecords: [],
   errorsCommitted: false,
   statsCommitted: false,
-  combo: 0,
   comboId: 0,
   spendSecond: 0,
   timerId: 0,
@@ -411,7 +410,6 @@ function clearPractice() {
   state.resultOpen = false;
   state.timedRunning = false;
   state.timedFinished = false;
-  state.combo = 0;
   state.comboId = 0;
   state.spendSecond = 0;
   state.typingStarted = false;
@@ -477,12 +475,10 @@ function endOfLineSpace(index) {
 
 function triggerWrong(expected, actual, index) {
   state.wrongRecords.push({ expected, actual, index, timestamp: Date.now() });
-  state.combo = 0;
   if (state.sound) playWrong();
 }
 
 function triggerCorrect() {
-  state.combo += 1;
   state.comboId += 1;
   if (state.sound) playCorrect();
 }
@@ -536,7 +532,7 @@ function onKeyDown(event) {
   const key = event.key;
   if (key === "Backspace") {
     state.input = state.input.slice(0, -1);
-    state.combo = trailingCombo(state.chars, state.input);
+    state.wrongRecords = TypingModel.pruneWrongRecords(state.wrongRecords, state.input.length);
     event.preventDefault();
     render();
     return;
@@ -611,7 +607,7 @@ function renderStats() {
   $("combo").innerHTML = `
     <div class="combo-track"><i style="width:${stats.comboPercent}%"></i></div>
     <b>连击 ×${stats.combo}</b>
-    ${state.combo >= 6 ? `<span class="combo-pop">×${state.combo}</span>` : ""}
+    ${stats.combo >= 6 ? `<span class="combo-pop">×${stats.combo}</span>` : ""}
   `;
 }
 
