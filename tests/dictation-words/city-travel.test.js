@@ -12,6 +12,9 @@ const REMOVED = [
   "sidings", "cloverleaf", "gantry", "tumbledown", "guildhall", "lido", "maisonette", "nearside", "bandstand", "hamlet",
   "shack", "ramshackle", "passport", "visa", "helicopter", "palace", "temple", "fountain", "anchor", "lively",
   "remote", "convenient", "historic",
+  "lintel", "gable", "colonnade", "cloister", "vestibule", "mews", "crypt", "alcove", "bridleway", "pillion",
+  "chicane", "switchback", "leeward", "punt", "pontoon", "pantheon", "mausoleum", "obelisk", "minaret", "pagoda",
+  "basilica", "piazza", "souk", "bullring", "velodrome", "contiguous", "abut", "hearth", "barracks", "senate",
 ];
 
 test("city-travel board has 25 units of 20 valid words", () => {
