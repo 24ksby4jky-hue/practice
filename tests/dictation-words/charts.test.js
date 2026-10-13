@@ -91,6 +91,23 @@ test("charts stays on the band and on 升降、比例、波动、对比、趋势
   }
 });
 
+test("charts drops broad everyday words and keeps drop, jump, share, total, range, vary", () => {
+  const words = new Set(wordsOf(board));
+  for (const word of ["drop", "jump", "share", "total", "range", "vary"]) {
+    assert.equal(words.has(word), true, `${word} describes charts and should stay`);
+  }
+  const tooBroad = [
+    "remain", "minor", "major", "fixed", "sink", "edge", "crawl", "smooth", "floor", "lately",
+    "overnight", "afterwards", "onwards", "grid", "layer", "chunk", "healthy", "solid",
+    "comfortable", "mixed", "faint", "slim", "phase", "extent", "spell", "episode", "stretch",
+    "gulf", "divide", "upside", "downside", "uplift"
+  ];
+  for (const word of tooBroad) {
+    assert.equal(words.has(word), false, `${word} should not be on this board`);
+  }
+  assert.equal(words.has("remainder"), true);
+});
+
 test("charts keeps one entry per word family and stays off other topics", () => {
   const words = new Set(wordsOf(board));
   const derivedForms = [
