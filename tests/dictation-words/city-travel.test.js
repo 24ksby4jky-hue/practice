@@ -15,6 +15,9 @@ const REMOVED = [
   "lintel", "gable", "colonnade", "cloister", "vestibule", "mews", "crypt", "alcove", "bridleway", "pillion",
   "chicane", "switchback", "leeward", "punt", "pontoon", "pantheon", "mausoleum", "obelisk", "minaret", "pagoda",
   "basilica", "piazza", "souk", "bullring", "velodrome", "contiguous", "abut", "hearth", "barracks", "senate",
+  "hotel", "church", "hospital", "office", "airport", "square", "cab", "trip", "exit", "entrance",
+  "delay", "narrow", "forward", "outer", "packed", "block", "unit", "return", "swimming-pool", "onward",
+  "nonstop", "in-flight", "pitch",
 ];
 
 test("city-travel board has 25 units of 20 valid words", () => {
