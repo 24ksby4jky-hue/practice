@@ -541,24 +541,24 @@
       { words: [
         { word: "u-shaped", pos: "adj.", phonetic: "/ˈjuː ʃeɪpt/", meaning: "U 形的", example: "The recovery was u-shaped." },
         { word: "single-digit", pos: "adj.", phonetic: "/ˌsɪŋɡl ˈdɪdʒɪt/", meaning: "个位数的", example: "The firm posted single-digit growth." },
-        { word: "pale", pos: "v.", phonetic: "/peɪl/", meaning: "相形见绌", example: "Imports pale beside exports in this chart." },
         { word: "counterbalance", pos: "v.", phonetic: "/ˌkaʊntəˈbæləns/", meaning: "抵消", example: "Higher exports counterbalance weak home sales." },
         { word: "heatmap", pos: "n.", phonetic: "/ˈhiːtmæp/", meaning: "热力图", example: "The heatmap shades the busiest months in red." },
         { word: "treemap", pos: "n.", phonetic: "/ˈtriːmæp/", meaning: "树状图", example: "The treemap shows each share as a box." },
         { word: "boxplot", pos: "n.", phonetic: "/ˈbɒksplɒt/", meaning: "箱线图", example: "The boxplot shows the spread of values." },
         { word: "doughnut", pos: "n.", phonetic: "/ˈdəʊnʌt/", meaning: "环形图", example: "The doughnut shows each share of the total." },
         { word: "datapoint", pos: "n.", phonetic: "/ˈdeɪtəpɔɪnt/", meaning: "数据点", example: "Each datapoint marks one month." },
-        { word: "series", pos: "n.", phonetic: "/ˈsɪəriːz/", meaning: "数据系列", example: "The blue series shows sales." },
         { word: "subgroup", pos: "n.", phonetic: "/ˈsʌbɡruːp/", meaning: "子群", example: "The youngest subgroup grew fastest." },
         { word: "medium-term", pos: "adj.", phonetic: "/ˌmiːdiəm ˈtɜːm/", meaning: "中期的", example: "The medium-term trend is flat." },
-        { word: "day-to-day", pos: "adj.", phonetic: "/ˌdeɪ tə ˈdeɪ/", meaning: "每日的", example: "Day-to-day changes are small." },
         { word: "year-to-date", pos: "adj.", phonetic: "/ˌjɪə tə ˈdeɪt/", meaning: "年初至今的", example: "The year-to-date total is low." },
         { word: "peak-to-trough", pos: "adj.", phonetic: "/ˌpiːk tə ˈtrɒf/", meaning: "峰谷间的", example: "The peak-to-trough fall was ten per cent." },
-        { word: "accrue", pos: "v.", phonetic: "/əˈkruː/", meaning: "逐渐累积", example: "Gains accrue slowly over the decade." },
-        { word: "compound", pos: "v.", phonetic: "/kəmˈpaʊnd/", meaning: "叠加增长", example: "Small gains compound over many years." },
-        { word: "depreciate", pos: "v.", phonetic: "/dɪˈpriːʃieɪt/", meaning: "贬值", example: "The currency may depreciate further." },
         { word: "meander", pos: "v.", phonetic: "/miˈændə/", meaning: "蜿蜒前行", example: "The line will meander across the chart." },
-        { word: "sparkline", pos: "n.", phonetic: "/ˈspɑːklaɪn/", meaning: "迷你折线图", example: "Each sparkline shows one year of sales." }
+        { word: "sparkline", pos: "n.", phonetic: "/ˈspɑːklaɪn/", meaning: "迷你折线图", example: "Each sparkline shows one year of sales." },
+        { word: "percentile", pos: "n.", phonetic: "/pəˈsentaɪl/", meaning: "百分位数", example: "Her score fell in the ninetieth percentile." },
+        { word: "decile", pos: "n.", phonetic: "/ˈdesaɪl/", meaning: "十分位数", example: "The top decile earns most of the total." },
+        { word: "asymptote", pos: "n.", phonetic: "/ˈæsɪmptəʊt/", meaning: "渐近线", example: "The curve approaches an asymptote at one hundred." },
+        { word: "vertex", pos: "n.", phonetic: "/ˈvɜːteks/", meaning: "顶点", example: "The vertex of the curve marks the peak year." },
+        { word: "lateral", pos: "adj.", phonetic: "/ˈlætərəl/", meaning: "横向的", example: "The line shows lateral movement for months." },
+        { word: "downtick", pos: "n.", phonetic: "/ˈdaʊntɪk/", meaning: "小幅下滑", example: "There was a small downtick in June." }
       ] }
     ]
   };

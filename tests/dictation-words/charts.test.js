@@ -108,6 +108,20 @@ test("charts drops broad everyday words and keeps drop, jump, share, total, rang
   assert.equal(words.has("remainder"), true);
 });
 
+test("charts leaves out finance and everyday words and keeps the controller-approved collocates", () => {
+  const words = new Set(wordsOf(board));
+  for (const word of ["depreciate", "accrue", "compound", "day-to-day", "series", "pale"]) {
+    assert.equal(words.has(word), false, `${word} should not be on this board`);
+  }
+  const kept = [
+    "drop", "jump", "share", "total", "range", "vary",
+    "sharp", "steep", "steady", "sudden", "slight", "gradual", "double"
+  ];
+  for (const word of kept) {
+    assert.equal(words.has(word), true, `${word} should stay on this board`);
+  }
+});
+
 test("charts keeps one entry per word family and stays off other topics", () => {
   const words = new Set(wordsOf(board));
   const derivedForms = [
