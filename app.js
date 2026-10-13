@@ -394,7 +394,7 @@ function commitErrors() {
 }
 
 function commitStats() {
-  if (state.statsCommitted || !state.input.length) return;
+  if (state.statsCommitted) return;
   persistArticleStat();
   state.statsCommitted = true;
 }
@@ -428,7 +428,7 @@ function startTimer() {
     state.timerId = setInterval(() => {
       if (!(state.timedApplied && state.timedRunning && !state.timedFinished)) return;
       state.timedRemain = Math.max(0, state.timedRemain - 1);
-      if (state.timedRemain === 0) finishTimed();
+      if (state.timedRemain === 0) finishSession();
       render();
     }, 1000);
     return;
@@ -441,8 +441,6 @@ function startTimer() {
 }
 
 function applyArticle(index) {
-  commitErrors();
-  commitStats();
   state.articleIndex = index;
   state.input = "";
   clearPractice();
@@ -489,28 +487,24 @@ function triggerCorrect() {
   if (state.sound) playCorrect();
 }
 
-function finishPractice() {
+function finishSession() {
+  const expired = state.mode === "timed" && state.timedApplied && state.timedRemain <= 0;
+  const visible = TypingModel.isTypingView(document.body.dataset.view);
+  const allowed = TypingModel.shouldPersist({
+    inputLength: state.input.length,
+    totalCount: state.totalCount,
+    timedExpired: expired,
+    typingViewVisible: visible
+  });
+  if (!allowed) return;
   state.finishTime = formatTime(elapsedSecond());
   state.reviewTab = "current";
+  state.reviewOpen = false;
   state.resultOpen = true;
-  persistJson(keysFor(currentId()).done, true);
-  captureReview();
-  commitErrors();
-  commitStats();
   state.typingStarted = false;
-  if (state.mode === "timed") {
-    state.timedRunning = false;
-    state.timedFinished = true;
-  }
-}
-
-function finishTimed() {
-  state.timedFinished = true;
   state.timedRunning = false;
-  state.reviewOpen = true;
-  state.reviewTab = "current";
-  state.finishTime = formatTime(elapsedSecond());
-  state.resultOpen = true;
+  if (state.mode === "timed") state.timedFinished = true;
+  persistJson(keysFor(currentId()).done, true);
   captureReview();
   commitErrors();
   commitStats();
@@ -553,7 +547,7 @@ function onKeyDown(event) {
       startPracticeIfNeeded();
       state.input += " ";
       triggerCorrect();
-      if (state.input.length === state.totalCount) finishPractice();
+      if (state.input.length === state.totalCount) finishSession();
     }
     event.preventDefault();
     render();
@@ -569,7 +563,7 @@ function onKeyDown(event) {
   event.preventDefault();
   if (key !== expected.char) triggerWrong(expected.char, key, expected.index);
   else triggerCorrect();
-  if (state.input.length === state.totalCount) finishPractice();
+  if (state.input.length === state.totalCount) finishSession();
   render();
 }
 
@@ -781,8 +775,6 @@ function measureLine() {
 
 function switchMode(mode) {
   if (state.mode === mode) return;
-  commitErrors();
-  commitStats();
   state.mode = mode;
   state.input = "";
   clearPractice();
@@ -791,9 +783,6 @@ function switchMode(mode) {
 }
 
 function resetArticle() {
-  captureReview();
-  commitErrors();
-  commitStats();
   state.input = "";
   clearPractice();
   startTimer();
