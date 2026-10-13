@@ -1,43 +1,10 @@
 (function () {
-const GROUPS = [
-  {
-    name: "校园生活",
-    words: [
-      { word: "schedule", pos: "n.", phonetic: "/ˈʃedjuːl/", meaning: "日程，时间表", example: "She checked the schedule before leaving for class." },
-      { word: "library", pos: "n.", phonetic: "/ˈlaɪbrəri/", meaning: "图书馆", example: "The library stays open until ten at night." },
-      { word: "assignment", pos: "n.", phonetic: "/əˈsaɪnmənt/", meaning: "作业，任务", example: "The assignment is due on Friday morning." },
-      { word: "deadline", pos: "n.", phonetic: "/ˈdedlaɪn/", meaning: "截止日期", example: "Missing the deadline costs ten percent of the mark." },
-      { word: "lecture", pos: "n.", phonetic: "/ˈlektʃər/", meaning: "讲座", example: "The lecture explained how glaciers move." },
-      { word: "semester", pos: "n.", phonetic: "/sɪˈmestər/", meaning: "学期", example: "This semester she is taking four courses." }
-    ]
-  },
-  {
-    name: "学术写作",
-    words: [
-      { word: "analyze", pos: "v.", phonetic: "/ˈænəlaɪz/", meaning: "分析", example: "Analyze the results before you draw a conclusion." },
-      { word: "evidence", pos: "n.", phonetic: "/ˈevɪdəns/", meaning: "证据", example: "The essay needs evidence from more than one source." },
-      { word: "contrast", pos: "n.", phonetic: "/ˈkɒntrɑːst/", meaning: "对比", example: "The contrast between the two cities is sharp." },
-      { word: "significant", pos: "adj.", phonetic: "/sɪɡˈnɪfɪkənt/", meaning: "显著的", example: "There was a significant rise in bicycle trips." },
-      { word: "approach", pos: "n.", phonetic: "/əˈprəʊtʃ/", meaning: "方法", example: "A slower approach produced fewer spelling errors." },
-      { word: "conclusion", pos: "n.", phonetic: "/kənˈkluːʒn/", meaning: "结论", example: "The conclusion should answer the question directly." }
-    ]
-  },
-  {
-    name: "图表描述",
-    words: [
-      { word: "increase", pos: "v.", phonetic: "/ɪnˈkriːs/", meaning: "增加", example: "Sales increase after the new lane opens." },
-      { word: "decline", pos: "n.", phonetic: "/dɪˈklaɪn/", meaning: "下降", example: "The chart shows a steady decline in car use." },
-      { word: "stable", pos: "adj.", phonetic: "/ˈsteɪbl/", meaning: "稳定的", example: "The figure stays stable for three weeks." },
-      { word: "proportion", pos: "n.", phonetic: "/prəˈpɔːʃn/", meaning: "比例", example: "A large proportion of students walk to school." },
-      { word: "fluctuate", pos: "v.", phonetic: "/ˈflʌktʃueɪt/", meaning: "波动", example: "Prices fluctuate from month to month." },
-      { word: "trend", pos: "n.", phonetic: "/trend/", meaning: "趋势", example: "The overall trend is upward." }
-    ]
-  }
-];
-
 const NOTE_KEY = "dictationNotebook:guest";
 const dict = {
-  groupIndex: 0,
+  boardId: "campus",
+  unitNumber: 1,
+  kind: "unit",
+  screen: "picker",
   words: [],
   index: 0,
   input: "",
@@ -56,6 +23,40 @@ const dict = {
 };
 
 const root = document.getElementById("dictation-view");
+
+function boardById(id) {
+  return DictationWords.find((item) => item.id === id) || DictationWords[0];
+}
+
+function rawDone() {
+  try {
+    return JSON.parse(localStorage.getItem(DictationModel.unitDoneKey()) || "null");
+  } catch {
+    return null;
+  }
+}
+
+function showPicker() {
+  dict.screen = "picker";
+  dict.words = [];
+  dict.index = 0;
+  dict.started = false;
+  dict.sessionDone = false;
+  document.getElementById("dict-picker").hidden = false;
+  document.getElementById("dict-card").hidden = true;
+  document.getElementById("dict-report").hidden = true;
+  document.getElementById("dict-stats").hidden = true;
+  document.getElementById("dict-progress").hidden = true;
+  paintPicker();
+}
+
+function backToUnits() {
+  stopTimer();
+  stopSpeak();
+  const screen = DictationModel.returnToUnits(dict.boardId);
+  dict.boardId = screen.boardId;
+  showPicker();
+}
 
 function noteList() {
   try { return JSON.parse(localStorage.getItem(NOTE_KEY) || "[]"); }
@@ -188,9 +189,14 @@ function paintStats() {
     <div class="metric"><b>${wpmOf(dict.results)}</b><span>单词数/min</span></div>
     <div class="metric"><b>${correct}/${dict.words.length || 0}</b><span>正确数</span></div>
   `;
-  const word = current();
   document.getElementById("dict-progress").textContent = dict.words.length
-    ? `${dict.review ? "复习" : "练习"} ${Math.min(dict.index + 1, dict.words.length)} / ${dict.words.length}${word ? " · " + GROUPS[dict.groupIndex].name : ""}`
+    ? DictationModel.progressLabel({
+      review: dict.review,
+      index: dict.index,
+      total: dict.words.length,
+      boardName: boardById(dict.boardId).name,
+      unitNumber: dict.unitNumber
+    })
     : "0 / 0";
 }
 
@@ -244,11 +250,13 @@ function paintReport() {
     <div class="dialog-actions">
       ${status === "review" ? '<button type="button" id="dict-review" class="primary">复习错词</button>' : ""}
       <button type="button" id="dict-again" class="${status === "review" ? "" : "primary"}">再练一次</button>
+      <button type="button" id="dict-back-report">返回单元</button>
     </div>
   `;
   const review = document.getElementById("dict-review");
   if (review) review.addEventListener("click", () => startReview(errors.map((item) => item.word)));
-  document.getElementById("dict-again").addEventListener("click", () => startGroup(dict.groupIndex, false));
+  document.getElementById("dict-again").addEventListener("click", () => openUnit(dict.unitNumber));
+  document.getElementById("dict-back-report").addEventListener("click", backToUnits);
 }
 
 function paintNotes() {
@@ -268,9 +276,6 @@ function paint() {
   paintNotes();
   document.getElementById("dict-uk").classList.toggle("active", dict.accent === "uk");
   document.getElementById("dict-us").classList.toggle("active", dict.accent === "us");
-  document.querySelectorAll("[data-group]").forEach((button) => {
-    button.classList.toggle("active", Number(button.dataset.group) === dict.groupIndex);
-  });
 }
 
 function stopTimer() {
@@ -305,11 +310,16 @@ function begin(words, review) {
   stopSpeak();
   dict.words = words;
   dict.review = review;
+  dict.kind = review ? "review" : "unit";
+  dict.screen = "session";
   dict.sessionDone = false;
   dict.skipped = false;
   dict.results = [];
   dict.spendSecond = 0;
   dict.started = true;
+  document.getElementById("dict-picker").hidden = true;
+  document.getElementById("dict-stats").hidden = false;
+  document.getElementById("dict-progress").hidden = false;
   document.getElementById("dict-card").hidden = false;
   document.getElementById("dict-report").hidden = true;
   startTimer();
@@ -317,14 +327,22 @@ function begin(words, review) {
   else paint();
 }
 
-function startGroup(index, review) {
-  dict.groupIndex = index;
-  begin(GROUPS[index].words.map((item) => ({ ...item })), review);
+function openUnit(unitNumber) {
+  const screen = DictationModel.startUnit(dict.boardId, unitNumber);
+  dict.boardId = screen.boardId;
+  dict.unitNumber = screen.unitNumber;
+  const words = boardById(dict.boardId).units[unitNumber - 1].words.map((item) => ({ ...item }));
+  begin(words, false);
 }
 
 function startReview(words) {
+  const screen = DictationModel.startReview(dict.boardId, dict.unitNumber);
+  dict.boardId = screen.boardId;
+  dict.unitNumber = screen.unitNumber;
   const set = new Set(words);
-  const list = GROUPS[dict.groupIndex].words.filter((item) => set.has(item.word));
+  const list = boardById(dict.boardId).units[dict.unitNumber - 1].words
+    .filter((item) => set.has(item.word))
+    .map((item) => ({ ...item }));
   begin(list, true);
 }
 
@@ -332,7 +350,67 @@ function finishSession() {
   dict.sessionDone = true;
   stopTimer();
   stopSpeak();
+  const outcome = DictationModel.sessionOutcome(
+    { kind: dict.kind, boardId: dict.boardId, unitNumber: dict.unitNumber },
+    dict.results.length
+  );
+  if (outcome.mark) {
+    persistJson(
+      DictationModel.unitDoneKey(),
+      DictationModel.markUnitDone(DictationModel.readUnitDone(rawDone()), outcome.boardId, outcome.unitNumber)
+    );
+  }
   paint();
+}
+
+function paintPicker() {
+  const boards = document.getElementById("dict-boards");
+  const units = document.getElementById("dict-units");
+  boards.replaceChildren();
+  units.replaceChildren();
+  DictationWords.forEach((board) => {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "mode";
+    button.dataset.board = board.id;
+    button.textContent = board.name;
+    button.classList.toggle("active", board.id === dict.boardId);
+    button.addEventListener("click", () => {
+      const screen = DictationModel.selectBoard(board.id);
+      dict.boardId = screen.boardId;
+      dict.screen = screen.screen;
+      paintPicker();
+    });
+    boards.appendChild(button);
+  });
+  const board = boardById(dict.boardId);
+  const done = DictationModel.readUnitDone(rawDone());
+  board.units.forEach((unit, index) => {
+    const number = index + 1;
+    const range = DictationModel.unitRange(number);
+    const card = document.createElement("button");
+    card.type = "button";
+    card.className = "unit-card";
+    const text = document.createElement("span");
+    const title = document.createElement("strong");
+    title.textContent = `第 ${number} 组`;
+    const rangeLine = document.createElement("span");
+    rangeLine.className = "hint";
+    rangeLine.textContent = `词汇 ${range.start}\u2013${range.end}`;
+    const count = document.createElement("span");
+    count.className = "hint";
+    count.textContent = "20 词";
+    text.append(title, rangeLine, count);
+    card.appendChild(text);
+    if (DictationModel.isUnitDone(done, board.id, number)) {
+      const mark = document.createElement("span");
+      mark.className = "unit-check";
+      mark.textContent = "✓";
+      card.appendChild(mark);
+    }
+    card.addEventListener("click", () => openUnit(number));
+    units.appendChild(card);
+  });
 }
 
 function goNext() {
@@ -407,10 +485,17 @@ function onKey(event) {
 
 function layout() {
   root.innerHTML = `
-    <div class="dict-groups" id="dict-groups"></div>
-    <div class="metrics" id="dict-stats"></div>
-    <p id="dict-progress" class="hint"></p>
-    <section class="stage dict-card" id="dict-card">
+    <section id="dict-picker">
+      <div class="dict-picker-head">
+        <h2>选择单元</h2>
+        <p class="hint">共 25 组 · 500 词</p>
+      </div>
+      <div class="dict-groups" id="dict-boards"></div>
+      <div class="dict-units" id="dict-units"></div>
+    </section>
+    <div class="metrics" id="dict-stats" hidden></div>
+    <p id="dict-progress" class="hint" hidden></p>
+    <section class="stage dict-card" id="dict-card" hidden>
       <div class="dict-audio">
         <button type="button" id="dict-play">播放单词发音</button>
         <button type="button" id="dict-uk" class="mode active">英式</button>
@@ -418,22 +503,17 @@ function layout() {
       </div>
       <div id="dict-slots" class="slots"></div>
       <p class="hint">键入单词拼写，Backspace 可回退，Alt+R 重听。词表是本地原创，发音由浏览器朗读。</p>
-      <button type="button" id="dict-reveal">看答案</button>
+      <div class="dialog-actions">
+        <button type="button" id="dict-reveal">看答案</button>
+        <button type="button" id="dict-back">返回单元</button>
+      </div>
       <div id="dict-answer" hidden></div>
     </section>
     <section class="review" id="dict-report" hidden></section>
     <section id="dict-notes"></section>
   `;
-  const groups = document.getElementById("dict-groups");
-  GROUPS.forEach((group, index) => {
-    const button = document.createElement("button");
-    button.type = "button";
-    button.className = "mode";
-    button.dataset.group = String(index);
-    button.textContent = `${group.name} · ${group.words.length}`;
-    button.addEventListener("click", () => startGroup(index, false));
-    groups.appendChild(button);
-  });
+  paintPicker();
+  document.getElementById("dict-back").addEventListener("click", backToUnits);
   document.getElementById("dict-play").addEventListener("click", () => {
     if (dict.playing) stopSpeak();
     else if (current()) speak(current().word);
@@ -453,13 +533,18 @@ function setHeading(title, subtitle) {
 function showDictation() {
   document.body.dataset.view = "dictation";
   pauseTypingClock();
-  setHeading("单词听写", "听发音，把单词拼进空格。错字母会标红，看答案记为未完成。");
+  setHeading("单词听写", DictationModel.DICTATION_SUBTITLE);
   document.getElementById("typing-view").hidden = true;
   root.hidden = false;
   document.getElementById("view-typing").classList.remove("active");
   document.getElementById("view-dictation").classList.add("active");
-  if (!dict.started) startGroup(0, false);
-  else if (!dict.sessionDone) startTimer();
+  stopTimer();
+  stopSpeak();
+  const screen = DictationModel.enterDictation();
+  dict.boardId = screen.boardId;
+  dict.index = 0;
+  dict.words = [];
+  showPicker();
 }
 
 function showTyping() {
@@ -468,6 +553,13 @@ function showTyping() {
   setHeading("打字练习", "按原文逐字输入。错字会标红并继续前进，Backspace 可以回退。");
   stopTimer();
   stopSpeak();
+  const screen = DictationModel.enterDictation();
+  dict.boardId = screen.boardId;
+  dict.screen = screen.screen;
+  dict.index = 0;
+  dict.words = [];
+  dict.started = false;
+  dict.sessionDone = false;
   document.getElementById("typing-view").hidden = false;
   root.hidden = true;
   document.getElementById("view-typing").classList.add("active");

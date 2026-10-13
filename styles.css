@@ -104,8 +104,15 @@ th, td { text-align: left; padding: 8px 6px; border-bottom: 1px solid var(--line
   .topbar { flex-direction: column; align-items: flex-start; }
 }
 .view-switch { display: flex; gap: 8px; margin-top: 14px; }
-#typing-view[hidden], #dictation-view[hidden] { display: none; }
+#typing-view[hidden], #dictation-view[hidden],
+#dict-stats[hidden], #dict-progress[hidden], #dict-picker[hidden], #dict-card[hidden], #dict-report[hidden] { display: none; }
 .dict-groups { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 14px; }
+.dict-picker-head { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; margin-top: 14px; }
+.dict-picker-head h2 { margin: 0; font-size: 18px; }
+.dict-units { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 10px; margin-top: 12px; }
+.unit-card { display: flex; justify-content: space-between; align-items: center; text-align: left; gap: 8px; }
+.unit-card strong, .unit-card .hint { display: block; }
+.unit-check { width: 22px; height: 22px; border-radius: 50%; background: var(--green); color: #fff; display: grid; place-items: center; flex: none; }
 .dict-card { margin-top: 12px; }
 .dict-audio { display: flex; gap: 8px; align-items: center; margin-bottom: 18px; }
 .slots { display: flex; gap: 8px; flex-wrap: wrap; min-height: 64px; align-items: flex-end; }
