@@ -29,6 +29,30 @@ test("charts does not reuse campus or academic-writing words, and increase appea
   assert.equal(words.filter((word) => word === "increase").length, 1);
 });
 
+test("charts describes figures and leaves out chart-subject nouns and basic words", () => {
+  const words = new Set(wordsOf(board));
+  const subjectNouns = [
+    "revenue", "expenditure", "income", "output", "demand", "supply", "consumption",
+    "unemployment", "turnover", "profit", "earnings", "wage", "salary", "export", "import",
+    "tourism", "commodity", "tariff", "subsidy", "invest", "capital", "asset", "liability",
+    "debt", "currency", "pension", "levy", "dividend", "mortgage", "retail", "wholesale",
+    "agriculture", "harvest", "crop", "fuel", "emission", "rainfall", "temperature", "drought",
+    "literacy", "longevity", "mortality", "fertility", "migration", "urban", "rural", "elderly",
+    "adolescent", "infant", "workforce", "payroll", "occupation", "headcount", "sector",
+    "crisis", "bubble", "windfall", "backlog", "stockpile", "buffer", "quota", "attrition",
+    "shortage", "shortfall"
+  ];
+  const belowBand = [
+    "gap", "index", "average", "quarter", "foreign", "domestic", "nationwide", "worldwide",
+    "brief", "mild", "nearly", "hardly", "alike", "digit", "numeral", "integer", "decimal",
+    "dozen", "trillion", "fiscal", "interim", "net", "gross", "raw", "fortnight", "epoch",
+    "millennium", "biennial", "era", "pace", "progress", "wave", "spreadsheet", "dataset"
+  ];
+  for (const word of [...subjectNouns, ...belowBand]) {
+    assert.equal(words.has(word), false, `${word} should not be on this board`);
+  }
+});
+
 test("charts keeps one entry per word family and stays off other topics", () => {
   const words = new Set(wordsOf(board));
   const derivedForms = [
