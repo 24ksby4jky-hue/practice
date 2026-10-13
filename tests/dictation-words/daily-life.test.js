@@ -20,7 +20,9 @@ const REMOVED = [
   "lantern", "barcode", "thermometer", "barometer", "meteorologist", "chef", "waiter", "hostess", "cashier", "florist",
   "butcher", "courier", "vendor", "retailer", "invoice", "debit", "installment", "surcharge", "wholesale", "shipment",
   "warranty", "promotion", "loyalty", "dawn", "dusk", "twilight", "horizon", "equinox", "solstice", "celsius",
-  "booking", "warning", "padded", "unsettled", "scorching",
+  "booking", "warning", "padded", "unsettled", "scorching", "groom", "bathe", "soothe", "scold", "ferry",
+  "cradle", "cage", "paw", "toddler", "habit", "ritual", "weekday", "reminder", "doze", "pamper",
+  "herb", "diet", "layer", "outdoor", "cozy", "display",
 ];
 
 test("daily-life board has 25 units of 20 valid words", () => {
