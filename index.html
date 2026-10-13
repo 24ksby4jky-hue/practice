@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>打字练习</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div class="app">
+    <header class="topbar">
+      <div>
+        <h1>打字练习</h1>
+        <p>按原文逐字输入。错字会标红并继续前进，Backspace 可以回退。</p>
+      </div>
+      <div class="top-actions">
+        <button type="button" id="sound-btn" class="ghost">声音已开启</button>
+        <label class="font-label">字号
+          <select id="font-size">
+            <option value="14px">14</option>
+            <option value="16px" selected>16</option>
+            <option value="18px">18</option>
+            <option value="20px">20</option>
+          </select>
+        </label>
+        <button type="button" id="exit-btn" class="ghost">退出</button>
+      </div>
+    </header>
+  <div class="view-switch">
+    <button type="button" id="view-typing" class="mode active">打字练习</button>
+    <button type="button" id="view-dictation" class="mode">单词听写</button>
+  </div>
+  <div id="typing-view">
+    <section class="stats" id="stats"></section>
+    <div class="combo" id="combo"></div>
+    <section class="modes">
+      <button type="button" id="mode-free" class="mode active">自由练习</button>
+      <button type="button" id="mode-timed" class="mode">限时挑战</button>
+      <div class="timed" id="timed-controls" hidden>
+        <label>分 <input id="timed-min" type="number" min="0" max="99" value="1" /></label>
+        <label>秒 <input id="timed-sec" type="number" min="0" max="59" value="0" /></label>
+        <span id="timed-hint"></span>
+      </div>
+    </section>
+    <section class="picker">
+      <button type="button" id="picker-toggle" class="picker-toggle">
+        <span id="picker-title">选择练习文章</span>
+        <span id="picker-meta"></span>
+      </button>
+      <div id="picker-panel" class="picker-panel"></div>
+      <form id="custom-form" class="custom">
+        <input id="custom-title" type="text" maxlength="40" placeholder="自己的文本标题" />
+        <textarea id="custom-body" rows="3" placeholder="粘贴一段英文，加入练习列表"></textarea>
+        <button type="submit">加入并开始</button>
+      </form>
+    </section>
+    <p class="hint">直接点击正文区域后开始输入。换行处按 Enter。行尾空格也可以按 Enter。练习短文是本地原创，用来复现打字流程。</p>
+    <section class="stage" id="stage" tabindex="0"></section>
+    <div class="stage-actions">
+      <button type="button" id="review-btn">复盘</button>
+      <button type="button" id="reset-btn" class="primary" title="清空全部输入与统计，重新开始本篇">重置</button>
+    </div>
+    <section class="review" id="review" hidden></section>
+  </div>
+  <section id="dictation-view" hidden></section>
+  </div>
+  <div class="modal" id="result-modal" hidden>
+    <div class="dialog">
+      <h2>本次练习结果</h2>
+      <p class="pill" id="result-pill"></p>
+      <p id="result-desc"></p>
+      <p class="score" id="result-score"></p>
+      <p class="tier" id="result-tier"></p>
+      <div class="result-metrics" id="result-metrics"></div>
+      <div class="dialog-actions">
+        <button type="button" id="result-review">查看复盘</button>
+        <button type="button" id="result-retry" class="primary">再练一次</button>
+      </div>
+    </div>
+  </div>
+  <div class="modal" id="exit-modal" hidden>
+    <div class="dialog">
+      <h2>提示</h2>
+      <p>本次练习尚未结束，中途退出不会保留任何的练习痕迹，确定退出吗？</p>
+      <div class="dialog-actions">
+        <button type="button" id="exit-cancel">取消</button>
+        <button type="button" id="exit-confirm" class="primary">确定</button>
+      </div>
+    </div>
+  </div>
+  <div class="toast" id="toast" hidden></div>
+  <script src="typing-model.js"></script>
+  <script src="app.js"></script>
+  <script src="dictation.js"></script>
+</body>
+</html>
