@@ -72,14 +72,12 @@ const state = {
   errorsCommitted: false,
   statsCommitted: false,
   comboId: 0,
-  spendSecond: 0,
+  clock: { accumulatedMs: 0, running: false, segmentStartedAt: null },
   timerId: 0,
   timedMin: 1,
   timedSec: 0,
   timedApplied: false,
-  timedRunning: false,
   timedFinished: false,
-  timedRemain: 0,
   finishTime: "",
   lastReview: null,
   resultOpen: false,
@@ -114,15 +112,36 @@ function layout(text, maxChars) {
   return TypingModel.layout(text, maxChars);
 }
 
+function nowMs() {
+  return Date.now();
+}
+
 function elapsedSecond() {
-  if (state.mode === "timed" && state.timedApplied) {
-    return Math.max(0, timedDuration() - state.timedRemain);
-  }
-  return state.spendSecond;
+  return Math.floor(TypingModel.elapsedMs(state.clock, nowMs()) / 1000);
 }
 
 function timedDuration() {
   return state.timedMin * 60 + state.timedSec;
+}
+
+function currentTimedRemain() {
+  if (!state.timedApplied) return 0;
+  return TypingModel.timedRemainSeconds(timedDuration(), TypingModel.elapsedMs(state.clock, nowMs()));
+}
+
+function pauseTypingClock() {
+  state.clock = TypingModel.pauseTimer(state.clock, nowMs());
+}
+
+function resumeTypingClock() {
+  const resume = TypingModel.shouldResume({
+    mode: state.mode,
+    typingStarted: state.typingStarted,
+    timedApplied: state.timedApplied,
+    finished: state.timedFinished || state.resultOpen
+  });
+  if (!resume) return;
+  state.clock = TypingModel.resumeTimer(state.clock, nowMs());
 }
 
 function trailingCombo(chars, input) {
@@ -155,8 +174,8 @@ function liveStats() {
     combo,
     comboPercent: Math.min(100, combo * 5),
     clock: state.mode === "timed"
-      ? formatTime(state.timedApplied ? state.timedRemain : 0)
-      : formatTime(state.spendSecond)
+      ? formatTime(currentTimedRemain())
+      : formatTime(elapsedSecond())
   };
 }
 
@@ -279,7 +298,7 @@ function isInputLocked() {
 
 function timedHint() {
   if (state.timedFinished) return "时间到，已生成复盘";
-  if (state.timedApplied) return `剩余 ${formatTime(state.timedRemain)}`;
+  if (state.timedApplied) return `剩余 ${formatTime(currentTimedRemain())}`;
   if (timedDuration() <= 0) return "请先设置挑战时长";
   return "开始打字即可计时";
 }
@@ -408,34 +427,29 @@ function clearPractice() {
   state.statsCommitted = false;
   state.reviewOpen = false;
   state.resultOpen = false;
-  state.timedRunning = false;
   state.timedFinished = false;
   state.comboId = 0;
-  state.spendSecond = 0;
   state.typingStarted = false;
   state.finishTime = "";
   if (state.mode === "timed") {
     state.timedApplied = false;
-    state.timedRemain = 0;
   }
+  state.clock = { accumulatedMs: 0, running: false, segmentStartedAt: null };
 }
 
 function startTimer() {
   clearInterval(state.timerId);
-  if (state.mode === "timed") {
-    state.timerId = setInterval(() => {
-      if (!(state.timedApplied && state.timedRunning && !state.timedFinished)) return;
-      state.timedRemain = Math.max(0, state.timedRemain - 1);
-      if (state.timedRemain === 0) finishSession();
-      render();
-    }, 1000);
-    return;
-  }
   state.timerId = setInterval(() => {
-    if (!state.typingStarted) return;
-    state.spendSecond += 1;
-    render();
-  }, 1000);
+    const visible = TypingModel.isTypingView(document.body.dataset.view);
+    const remain = currentTimedRemain();
+    const wasRunning = state.clock.running;
+    if (visible && state.mode === "timed" && state.timedApplied && wasRunning && !state.timedFinished && remain <= 0) {
+      finishSession();
+      render();
+      return;
+    }
+    if (wasRunning) render();
+  }, 250);
 }
 
 function applyArticle(index) {
@@ -455,15 +469,16 @@ function startPracticeIfNeeded() {
   if (state.mode === "timed") {
     if (!state.timedApplied && !state.timedFinished && timedDuration() > 0) {
       state.timedApplied = true;
-      state.timedRemain = timedDuration();
-      state.timedRunning = true;
+      state.clock = { accumulatedMs: 0, running: false, segmentStartedAt: null };
+      state.clock = TypingModel.resumeTimer(state.clock, nowMs());
       state.reviewOpen = false;
-    } else if (state.timedApplied && !state.timedRunning && !state.timedFinished) {
-      state.timedRunning = true;
+    } else if (state.timedApplied && !state.clock.running && !state.timedFinished) {
+      state.clock = TypingModel.resumeTimer(state.clock, nowMs());
     }
     return;
   }
   state.typingStarted = true;
+  state.clock = TypingModel.resumeTimer(state.clock, nowMs());
 }
 
 function endOfLineSpace(index) {
@@ -484,7 +499,9 @@ function triggerCorrect() {
 }
 
 function finishSession() {
-  const expired = state.mode === "timed" && state.timedApplied && state.timedRemain <= 0;
+  const remain = currentTimedRemain();
+  const elapsed = elapsedSecond();
+  const expired = state.mode === "timed" && state.timedApplied && remain <= 0;
   const visible = TypingModel.isTypingView(document.body.dataset.view);
   const allowed = TypingModel.shouldPersist({
     inputLength: state.input.length,
@@ -493,12 +510,12 @@ function finishSession() {
     typingViewVisible: visible
   });
   if (!allowed) return;
-  state.finishTime = formatTime(elapsedSecond());
+  pauseTypingClock();
+  state.finishTime = formatTime(elapsed);
   state.reviewTab = "current";
   state.reviewOpen = false;
   state.resultOpen = true;
   state.typingStarted = false;
-  state.timedRunning = false;
   if (state.mode === "timed") state.timedFinished = true;
   persistJson(keysFor(currentId()).done, true);
   captureReview();
@@ -748,6 +765,7 @@ function render() {
 }
 
 function measureLine() {
+  if (state.input.length > 0) return;
   const stage = $("stage");
   const probe = document.createElement("span");
   probe.textContent = "0";
@@ -867,6 +885,7 @@ $("stage").addEventListener("click", () => $("stage").focus());
 document.addEventListener("keydown", onKeyDown);
 window.addEventListener("resize", measureLine);
 
+document.body.dataset.view = "typing";
 applyArticle(0);
 measureLine();
 $("stage").focus();

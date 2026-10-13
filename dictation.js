@@ -452,6 +452,7 @@ function setHeading(title, subtitle) {
 
 function showDictation() {
   document.body.dataset.view = "dictation";
+  pauseTypingClock();
   setHeading("单词听写", "听发音，把单词拼进空格。错字母会标红，看答案记为未完成。");
   document.getElementById("typing-view").hidden = true;
   root.hidden = false;
@@ -463,6 +464,7 @@ function showDictation() {
 
 function showTyping() {
   document.body.dataset.view = "typing";
+  resumeTypingClock();
   setHeading("打字练习", "按原文逐字输入。错字会标红并继续前进，Backspace 可以回退。");
   stopTimer();
   stopSpeak();
