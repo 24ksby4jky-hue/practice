@@ -1,42 +1,51 @@
-const USER = "guest";
-const KEY_ERRORS = `typingCumulativeErrors:${USER}`;
-const KEY_STATS = `typingArticleStats:${USER}`;
-const reviewKey = (title) => `typingReview_${title}:${USER}`;
-const doneKey = (title) => `typingExercise_${title}:${USER}`;
+function keysFor(id) {
+  return TypingModel.storageKeys(id);
+}
+
+function currentId() {
+  return state.articles[state.articleIndex]?.id || "";
+}
+
 const KEY_ROWS = ["qwertyuiop", "asdfghjkl", "zxcvbnm"];
 
 const ARTICLES = [
   {
+    id: "morning-platform",
     title: "Morning Platform",
     category: "日常短文",
     label: "车站",
     content: "The morning train was two minutes late, which was enough time for Lin to finish tying a shoelace and still catch the doors. She found a seat by the window and watched the platform slide away. A student across the aisle was mouthing vocabulary, tapping one finger for each stressed syllable. Lin opened her notebook and copied the same habit, speaking only in her head. By the third stop the carriage had filled, and the quiet practice turned into a small contest with the rattling wheels."
   },
   {
+    id: "library-desk",
     title: "Library Desk",
     category: "日常短文",
     label: "图书馆",
     content: "The desk lamp made a warm circle on the page and left the rest of the room dim. Chen set a glass of water just outside that circle so he would not knock it over while typing. He read one sentence, looked away, and typed it from memory. When a word came out wrong he did not delete the whole line. He backed up one letter, fixed it, and continued. The rule was simple: speed was allowed only after the sentence was clean."
   },
   {
+    id: "city-bike-lanes",
     title: "City Bike Lanes",
     category: "说明段落",
     label: "说明",
     content: "The chart compares weekly bicycle trips in three districts over one spring. Harbor District starts lowest, then rises sharply after the new riverside lane opens in week three. Market District stays almost flat, because its streets remain narrow and shared with delivery vans. Hill District grows slowly and passes Market District in the final week. The main change is not the weather. It is the protected lane, which makes short trips feel safe enough for people who used to walk."
   },
   {
+    id: "workshop-hours",
     title: "Workshop Hours",
     category: "说明段落",
     label: "流程",
     content: "The workshop runs in four blocks. Block one is a timed copy of a short paragraph. Block two reviews the letters that caused the most errors. Block three repeats only the sentences that contained those letters. Block four is an untimed pass where accuracy matters more than pace. A session ends when the final pass stays above ninety percent, or when the clock reaches forty minutes. Leaving early discards the current pass and keeps only finished sessions."
   },
   {
+    id: "slow-on-purpose",
     title: "Slow on Purpose",
     category: "观点练习",
     label: "观点",
     content: "People often treat typing speed as the whole skill, but a fast wrong sentence still has to be repaired. In an exam the repair costs more time than the original caution. A steadier method is to keep the eyes one word ahead of the fingers and to refuse a guess when the letter is unclear. Speed grows later, after the hands stop inventing characters. The useful target is a pace you can hold for several minutes without a sudden burst of mistakes."
   },
   {
+    id: "notes-you-can-trust",
     title: "Notes You Can Trust",
     category: "观点练习",
     label: "笔记",
@@ -76,8 +85,7 @@ const state = {
   lastReview: null,
   resultOpen: false,
   exitOpen: false,
-  lastLockText: "",
-  customSerial: 1
+  lastLockText: ""
 };
 
 const $ = (id) => document.getElementById(id);
@@ -218,11 +226,11 @@ function displayReview() {
 }
 
 function loadCumulative() {
-  return readJson(KEY_ERRORS, {}).charCounts || {};
+  return readJson(keysFor(currentId()).errors, {}).charCounts || {};
 }
 
 function loadArticleStats() {
-  return readJson(KEY_STATS, { byTitle: {} });
+  return TypingModel.articleStatsFromStorage(readJson(keysFor(currentId()).stats, { byId: {} }));
 }
 
 function currentTitle() {
@@ -230,14 +238,13 @@ function currentTitle() {
 }
 
 function cumulativeReview() {
-  const title = currentTitle();
   const counts = loadCumulative();
-  const stat = loadArticleStats().byTitle[title];
+  const stat = loadArticleStats().byId[currentId()];
   const practiceCount = stat?.practiceCount || 0;
   return {
     practiceCount,
     bestWpm: String(stat?.bestWpm || 0),
-    avgWpm: String(practiceCount ? Math.round((stat.wpmSum || 0) / practiceCount) : 0),
+    avgWpm: String(TypingModel.averageWpm(stat)),
     bestAccuracyText: `${stat?.bestAccuracy || 0}%`,
     avgAccuracyText: `${practiceCount ? Math.round((stat.accuracySum || 0) / practiceCount) : 0}%`,
     topWrongChars: topWrong(counts),
@@ -284,6 +291,12 @@ function showToast(text) {
   toast.textContent = text;
   clearTimeout(showToast.timer);
   showToast.timer = setTimeout(() => { toast.hidden = true; }, 1800);
+}
+
+function persistJson(key, value) {
+  const ok = TypingModel.writeJson(localStorage, key, value);
+  if (!ok) showToast("本地记录没能保存");
+  return ok;
 }
 
 let audioCtx;
@@ -351,31 +364,27 @@ function persistErrors() {
   Object.entries(countExpected(state.wrongRecords)).forEach(([key, count]) => {
     merged[key] = (merged[key] || 0) + count;
   });
-  localStorage.setItem(KEY_ERRORS, JSON.stringify({ version: 1, charCounts: merged }));
+  persistJson(keysFor(currentId()).errors, { version: 1, charCounts: merged });
 }
 
 function persistArticleStat() {
   const stats = reviewStats();
-  const wpm = Number(stats.finalWpm) || 0;
+  const wpmValue = Number(stats.finalWpm) || 0;
   const accuracy = Number(stats.accuracyText.replace("%", "")) || 0;
   const store = loadArticleStats();
-  const prev = store.byTitle[currentTitle()] || {
-    practiceCount: 0, bestWpm: 0, wpmSum: 0, bestAccuracy: 0, accuracySum: 0
-  };
-  store.byTitle[currentTitle()] = {
-    practiceCount: prev.practiceCount + 1,
-    bestWpm: Math.max(prev.bestWpm, wpm),
-    wpmSum: prev.wpmSum + wpm,
-    bestAccuracy: Math.max(prev.bestAccuracy, accuracy),
-    accuracySum: prev.accuracySum + accuracy
-  };
-  localStorage.setItem(KEY_STATS, JSON.stringify(store));
+  const id = currentId();
+  store.byId[id] = TypingModel.applyPracticeStat(store.byId[id] || TypingModel.emptyPracticeStat(), {
+    wpm: wpmValue,
+    accuracy,
+    elapsedSecond: elapsedSecond()
+  });
+  persistJson(keysFor(id).stats, store);
 }
 
 function captureReview() {
   if (!state.input.length) return;
   state.lastReview = reviewStats();
-  localStorage.setItem(reviewKey(currentTitle()), JSON.stringify(state.lastReview));
+  persistJson(keysFor(currentId()).review, state.lastReview);
 }
 
 function commitErrors() {
@@ -391,7 +400,7 @@ function commitStats() {
 }
 
 function loadReviewSnapshot() {
-  state.lastReview = readJson(reviewKey(currentTitle()), null);
+  state.lastReview = readJson(keysFor(currentId()).review, null);
 }
 
 function clearPractice() {
@@ -484,7 +493,7 @@ function finishPractice() {
   state.finishTime = formatTime(elapsedSecond());
   state.reviewTab = "current";
   state.resultOpen = true;
-  localStorage.setItem(doneKey(currentTitle()), "true");
+  persistJson(keysFor(currentId()).done, true);
   captureReview();
   commitErrors();
   commitStats();
@@ -616,7 +625,7 @@ function renderPicker() {
   const article = state.articles[state.articleIndex];
   const group = groups().find((item) => item.label === article.category);
   const localIndex = group.items.findIndex((item) => item.globalIndex === state.articleIndex);
-  const done = state.articles.filter((item) => localStorage.getItem(doneKey(item.title)) === "true").length;
+  const done = state.articles.filter((item) => localStorage.getItem(keysFor(item.id).done) === "true").length;
   $("picker-title").textContent = `选择练习文章 · ${article.category} ${String(localIndex + 1).padStart(2, "0")}`;
   $("picker-meta").textContent = `共 ${state.articles.length} 篇 · 已练习 ${done}`;
   $("picker-panel").classList.toggle("closed", !state.pickerOpen);
@@ -635,7 +644,7 @@ function renderPicker() {
       const name = document.createElement("strong");
       name.textContent = articleItem.title;
       const meta = document.createElement("em");
-      meta.textContent = localStorage.getItem(doneKey(articleItem.title)) === "true" ? "已练习" : articleItem.label;
+      meta.textContent = localStorage.getItem(keysFor(articleItem.id).done) === "true" ? "已练习" : articleItem.label;
       button.append(name, meta);
       button.addEventListener("click", () => applyArticle(articleItem.globalIndex));
       row.appendChild(button);
@@ -851,11 +860,20 @@ $("result-retry").addEventListener("click", () => {
 });
 $("custom-form").addEventListener("submit", (event) => {
   event.preventDefault();
-  const title = $("custom-title").value.trim() || `自定义 ${state.customSerial}`;
+  const serialKey = keysFor("custom").customSerial;
+  const serial = readJson(serialKey, 0);
+  const next = TypingModel.nextCustomId(Number.isInteger(serial) ? serial : 0);
+  const title = $("custom-title").value.trim() || `自定义 ${next.serial}`;
   const content = $("custom-body").value.trim();
   if (!content) return;
-  state.customSerial += 1;
-  state.articles.push({ title, category: "自己的文本", label: "自定义", content });
+  persistJson(serialKey, next.serial);
+  state.articles.push({
+    id: next.id,
+    title,
+    category: "自己的文本",
+    label: "自定义",
+    content
+  });
   $("custom-title").value = "";
   $("custom-body").value = "";
   applyArticle(state.articles.length - 1);
