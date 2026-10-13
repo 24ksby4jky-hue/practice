@@ -53,6 +53,44 @@ test("charts describes figures and leaves out chart-subject nouns and basic word
   }
 });
 
+test("charts stays on the band and on 升降、比例、波动、对比、趋势", () => {
+  const words = new Set(wordsOf(board));
+  const keptCollocates = ["sharp", "steep", "steady", "sudden", "slight", "gradual", "double"];
+  for (const word of keptCollocates) {
+    assert.equal(words.has(word), true, `${word} is a chart collocate and should stay`);
+  }
+  const tooBasic = [
+    "entire", "exact", "rough", "grim", "gentle", "enormous", "vast", "equal", "constant",
+    "lower", "reduce", "climb", "narrow", "widen", "shift", "immense", "massive", "tremendous",
+    "colossal", "ease", "tilt", "tighten", "loosen", "soften", "dismal", "bleak", "gloomy",
+    "upbeat", "stellar", "spectacular", "phenomenal"
+  ];
+  const tooRare = [
+    "apex", "zenith", "nadir", "plethora", "manifold", "copious", "inordinate", "exorbitant",
+    "modicum", "tailspin", "preponderance", "meteoric", "precipitous"
+  ];
+  const causeAndProcess = [
+    "hamper", "impede", "hinder", "stifle", "stunt", "dampen", "stimulate", "spur", "propel",
+    "monitor", "compute", "undercut", "displace", "align", "linger", "zigzag"
+  ];
+  const evaluative = ["lucrative", "mediocre", "respectable", "typical", "bumper"];
+  const eventAndMetaphor = [
+    "outset", "aftermath", "fallout", "pendulum", "seesaw", "breakthrough", "watershed",
+    "juncture", "comeback", "tide", "fad", "craze", "vogue", "inertia", "barometer", "metric"
+  ];
+  const generalWords = ["ubiquitous", "pervasive", "rife", "commonplace", "chiefly", "altogether"];
+  const economicsSubjects = [
+    "recession", "boom", "glut", "dearth", "influx", "exodus", "inflow", "outflow", "deficit"
+  ];
+  const relatedForms = ["subtotal"];
+  for (const word of [
+    ...tooBasic, ...tooRare, ...causeAndProcess, ...evaluative, ...eventAndMetaphor,
+    ...generalWords, ...economicsSubjects, ...relatedForms
+  ]) {
+    assert.equal(words.has(word), false, `${word} should not be on this board`);
+  }
+});
+
 test("charts keeps one entry per word family and stays off other topics", () => {
   const words = new Set(wordsOf(board));
   const derivedForms = [
