@@ -36,12 +36,22 @@ function rawDone() {
   }
 }
 
+function clearAttempt() {
+  dict.complete = false;
+  dict.correct = false;
+  dict.revealed = false;
+  dict.skipped = false;
+  dict.input = "";
+  dict.results = [];
+}
+
 function showPicker() {
   dict.screen = "picker";
   dict.words = [];
   dict.index = 0;
   dict.started = false;
   dict.sessionDone = false;
+  clearAttempt();
   document.getElementById("dict-picker").hidden = false;
   document.getElementById("dict-card").hidden = true;
   document.getElementById("dict-report").hidden = true;
@@ -414,6 +424,7 @@ function paintPicker() {
 }
 
 function goNext() {
+  if (dict.screen !== "session" || dict.words.length === 0) return;
   if (dict.index + 1 < dict.words.length) {
     loadWord(dict.index + 1);
     return;
@@ -448,6 +459,7 @@ function onKey(event) {
   if (document.body.dataset.view !== "dictation") return;
   const target = event.target;
   if (target && (target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.isContentEditable)) return;
+  if (dict.screen !== "session" || dict.words.length === 0) return;
   if (event.altKey && event.key.toLowerCase() === "r") {
     event.preventDefault();
     const word = current();
@@ -560,6 +572,7 @@ function showTyping() {
   dict.words = [];
   dict.started = false;
   dict.sessionDone = false;
+  clearAttempt();
   document.getElementById("typing-view").hidden = false;
   root.hidden = true;
   document.getElementById("view-typing").classList.add("active");
