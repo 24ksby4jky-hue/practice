@@ -1,138 +1,848 @@
+/* ==========================================================================
+   打字练习 — 练习本
+   A Chinese student's English exercise book.
+
+   规则 / rules:
+     · 纸不是卡片 — paper, not chrome. No card, no radius, no shadow.
+     · 红只用来批改 — red is only ever a correction, never decoration.
+     · 选中用墨 — selection is ink, not colour.
+     · 每一条线都在排字 — every rule on screen either rules the page
+       or marks a correction. Nothing decorative.
+   ========================================================================== */
+
 :root {
-  --bg: #eef1fb;
-  --card: #ffffff;
-  --ink: #1d2433;
-  --muted: #6b728a;
-  --line: #e4e8f4;
-  --blue: #3377ff;
-  --blue-soft: #eaf1ff;
-  --green: #12805c;
-  --red: #d14343;
-  --purple: #5b67f1;
-  --shadow: 0 10px 30px rgba(51, 84, 160, 0.08);
+  /* 纸 paper */
+  --paper:     #f4f5f7;
+  --surface:   #fcfcfd;
+  --ink:       #14161c;
+  --ink-2:     #3b414f;
+  --muted:     #6e7686;
+  --rule:      #c6d3e0;   /* 四线三格 印线 — printed ruling blue */
+  --rule-line: #d9e2ec;   /* 纸上印线 — lighter, sits behind body text */
+  --rule-soft: #e0e5eb;   /* 版心细线 — internal hairline */
+
+  /* 记号 marks */
+  --red:       #c2362a;   /* 批改红 — corrections only */
+  --pass:      #2c6a4b;   /* 对号 */
+
+  /* Consolas leads deliberately. The 四线三格 stave is built from the font's
+     own metrics, and it needs an x-height that sits in the middle of the em
+     box: Consolas is .50 (bands come out .25 / .50 / .25 — real stave
+     proportions), where Cascadia Mono's .688 collapses the ascender band to
+     almost nothing. */
+  /* The CJK faces sit after the Latin monos so mixed strings — 顺手, 260 WPM —
+     keep the sans Chinese of the rest of the UI instead of falling through to
+     the generic monospace, which resolves to a serif on Windows. */
+  --mono: Consolas, Menlo, "DejaVu Sans Mono", "Liberation Mono", ui-monospace,
+          SFMono-Regular, "PingFang SC", "Microsoft YaHei", monospace;
+  --cjk: "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Source Han Sans SC",
+         "Noto Sans CJK SC", sans-serif;
+  --song: "Source Han Serif SC", "Songti SC", "STSong", "SimSun",
+          "Noto Serif CJK SC", serif;
+
+  --hair: 1px;
+  --gap: 22px;
 }
+
 * { box-sizing: border-box; }
+
 body {
   margin: 0;
   min-height: 100vh;
-  font-family: "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+  font-family: var(--cjk);
+  font-size: 15px;
+  line-height: 1.7;
   color: var(--ink);
-  background: radial-gradient(900px 420px at 10% -10%, #dfe7ff 0%, transparent 60%), var(--bg);
+  background: var(--paper);
+  -webkit-font-smoothing: antialiased;
 }
-button, input, textarea, select { font: inherit; }
-.app { width: min(1080px, calc(100% - 32px)); margin: 28px auto 48px; }
-.topbar, .stats, .modes, .picker, .stage, .review, .dialog {
-  background: var(--card);
-  border-radius: 18px;
-  box-shadow: var(--shadow);
+
+button, input, textarea, select { font: inherit; color: inherit; }
+
+/* Visible focus ring for keyboard users — part of the quality floor. */
+:focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: 2px;
 }
-.topbar { display: flex; justify-content: space-between; gap: 16px; align-items: center; padding: 18px 22px; }
-h1 { margin: 0 0 4px; font-size: 22px; }
-.topbar p, .hint { margin: 0; color: var(--muted); font-size: 13px; }
-.top-actions, .dialog-actions, .stage-actions, .timed, .custom { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
-button, select { border: 1px solid var(--line); background: #fff; color: var(--ink); border-radius: 10px; padding: 8px 12px; cursor: pointer; }
-button.primary, .mode.active { background: var(--blue); border-color: var(--blue); color: #fff; }
-button.ghost { background: var(--blue-soft); border-color: transparent; color: var(--blue); }
-.font-label { color: var(--muted); font-size: 13px; display: flex; gap: 6px; align-items: center; }
-.stats { margin-top: 14px; display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; padding: 14px; }
-.stat { padding: 8px 10px; }
-.stat span { display: block; color: var(--muted); font-size: 13px; margin-bottom: 6px; }
-.stat strong { font-size: 28px; letter-spacing: -0.04em; }
-.stat strong.good { color: var(--green); }
-.stat strong.time { color: var(--purple); }
-.stat small { font-size: 16px; color: var(--muted); font-weight: 600; }
-.combo { margin-top: 10px; display: flex; align-items: center; gap: 10px; min-height: 18px; }
-.combo-track { flex: 1; height: 8px; background: #e7ebf6; border-radius: 99px; overflow: hidden; }
-.combo-track i { display: block; height: 100%; width: 0; background: linear-gradient(90deg, #7aa2ff, #3377ff); }
-.combo b { color: var(--blue); min-width: 72px; }
-.combo-pop { animation: pop 280ms ease; color: var(--blue); font-weight: 700; }
-@keyframes pop { from { transform: scale(0.8); opacity: 0; } to { transform: scale(1); opacity: 1; } }
-.modes, .picker { margin-top: 14px; padding: 12px; }
-.timed[hidden] { display: none; }
-.timed input { width: 72px; padding: 8px; border-radius: 10px; border: 1px solid var(--line); }
-#timed-hint { color: var(--muted); font-size: 13px; }
-.picker-toggle { width: 100%; display: flex; justify-content: space-between; background: var(--blue-soft); border: 0; color: var(--ink); }
-.picker-panel { margin-top: 10px; display: grid; gap: 12px; }
-.picker-panel.closed { display: none; }
-.group h3 { margin: 0 0 8px; font-size: 13px; color: var(--muted); }
-.articles { display: flex; flex-wrap: wrap; gap: 8px; }
-.article { text-align: left; max-width: 280px; }
-.article.current { outline: 2px solid var(--blue); }
-.article em { display: block; font-style: normal; color: var(--muted); font-size: 12px; }
-.custom { margin-top: 10px; }
-.custom input, .custom textarea { flex: 1; min-width: 180px; border: 1px solid var(--line); border-radius: 10px; padding: 8px 10px; }
-.hint { margin: 12px 4px; }
-.stage { padding: 22px 24px; min-height: 240px; max-height: 420px; overflow: auto; line-height: 1.85; outline: none; cursor: text; }
-.line { white-space: pre-wrap; }
-.ch { border-radius: 3px; }
-.ch.ok { color: var(--green); }
-.ch.bad { color: #fff; background: var(--red); }
-.ch.caret { background: #d7e4ff; box-shadow: inset 0 -2px 0 var(--blue); }
-.ch.wait { color: #98a0b3; }
-.stage-actions { display: flex; gap: 8px; margin-top: 12px; }
-.review { margin-top: 14px; padding: 16px 18px; }
-.tabs { display: flex; gap: 8px; margin-bottom: 12px; }
-.metrics, .cumul-metrics { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; margin-bottom: 14px; }
-.metric { background: #f7f8fd; border-radius: 12px; padding: 10px; }
-.metric b { display: block; font-size: 22px; }
-.metric span { color: var(--muted); font-size: 12px; }
-table { width: 100%; border-collapse: collapse; font-size: 14px; }
-th, td { text-align: left; padding: 8px 6px; border-bottom: 1px solid var(--line); }
-.empty { color: var(--muted); }
-.keys { display: grid; gap: 6px; margin-top: 8px; }
-.key-row { display: flex; justify-content: center; gap: 4px; }
-.key { min-width: 34px; height: 36px; border-radius: 8px; display: grid; place-items: center; background: #f3f5fb; border: 1px solid var(--line); text-transform: uppercase; font-size: 13px; }
-.key.low { background: #fff4cc; }
-.key.medium { background: #ffd0a6; }
-.key.high { background: #ffb4b4; }
-.legend { display: flex; gap: 12px; justify-content: center; color: var(--muted); font-size: 12px; margin-top: 8px; }
-.swatch { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 4px; }
-.swatch.low { background: #fff4cc; }
-.swatch.medium { background: #ffd0a6; }
-.swatch.high { background: #ffb4b4; }
-.modal { position: fixed; inset: 0; background: rgba(22, 28, 45, 0.35); display: grid; place-items: center; padding: 20px; }
-.modal[hidden] { display: none; }
-.dialog { width: min(460px, 100%); padding: 22px; }
-.dialog h2 { margin: 0 0 8px; }
-.pill, .tier { color: var(--blue); font-weight: 700; }
-.score { font-size: 42px; margin: 8px 0; }
-.result-metrics { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin: 12px 0; }
-.dialog-actions { justify-content: flex-end; }
-.toast { position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%); background: #1d2433; color: #fff; padding: 10px 14px; border-radius: 999px; font-size: 13px; }
-@media (max-width: 800px) {
-  .stats, .metrics, .cumul-metrics, .result-metrics { grid-template-columns: repeat(2, 1fr); }
-  .topbar { flex-direction: column; align-items: flex-start; }
+
+.app {
+  width: min(1080px, calc(100% - 40px));
+  margin: 0 auto;
+  padding: 44px 0 96px;
 }
-.view-switch { display: flex; gap: 8px; margin-top: 14px; }
-#typing-view[hidden], #dictation-view[hidden],
-#dict-stats[hidden], #dict-progress[hidden], #dict-picker[hidden], #dict-card[hidden], #dict-report[hidden] { display: none; }
-.dict-groups { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 14px; }
-.dict-picker-head { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; margin-top: 14px; }
-.dict-picker-head h2 { margin: 0; font-size: 18px; }
-.dict-units { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 10px; margin-top: 12px; }
-.unit-card { display: flex; justify-content: space-between; align-items: center; text-align: left; gap: 8px; }
-.unit-card strong, .unit-card .hint { display: block; }
-.unit-check { width: 22px; height: 22px; border-radius: 50%; background: var(--green); color: #fff; display: grid; place-items: center; flex: none; }
-.dict-card { margin-top: 12px; }
-.dict-audio { display: flex; gap: 8px; align-items: center; margin-bottom: 18px; }
-.slots { display: flex; gap: 8px; flex-wrap: wrap; min-height: 64px; align-items: flex-end; }
-.slot {
-  width: 28px;
-  height: 48px;
-  border-bottom: 3px solid #c5cbe0;
-  display: grid;
-  place-items: center;
-  font-size: 28px;
+
+h1, h2, h3 { font-family: var(--song); font-weight: 700; }
+
+/* --------------------------------------------------------------------------
+   页眉 — the page header
+   -------------------------------------------------------------------------- */
+
+.topbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 20px;
+  padding-bottom: 14px;
+  border-bottom: var(--hair) solid var(--ink);
+}
+
+h1 {
+  margin: 0 0 5px;
+  font-size: 30px;
+  line-height: 1.2;
+  letter-spacing: 0.01em;
+}
+
+.topbar p {
+  margin: 0;
+  max-width: 44em;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.top-actions, .dialog-actions, .stage-actions, .timed, .custom {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+/* --------------------------------------------------------------------------
+   控件 — controls
+   Every button is a ruled cell; nothing is a pill.
+   -------------------------------------------------------------------------- */
+
+button, select {
+  border: var(--hair) solid var(--rule);
+  background: transparent;
+  border-radius: 0;
+  padding: 8px 14px;
+  cursor: pointer;
+  transition: border-color 120ms ease, background-color 120ms ease, color 120ms ease;
+}
+
+button:hover, select:hover { border-color: var(--ink); }
+
+/* 墨 fill = the app's only "selected / commit" state. */
+button.primary {
+  background: var(--ink);
+  border-color: var(--ink);
+  color: var(--paper);
+  font-weight: 600;
+}
+button.primary:hover { background: #000; border-color: #000; }
+
+button.ghost { border-color: var(--rule-soft); color: var(--ink-2); }
+button.ghost:hover { border-color: var(--ink); color: var(--ink); }
+
+.font-label {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  color: var(--muted);
+  font-size: 13px;
+}
+.font-label select { padding: 5px 8px; }
+
+/* 标签页 — tabs sitting on a rule. Used for view switch, modes,
+   board chips and the accent toggle. */
+.mode {
+  border: 0;
+  border-bottom: 2px solid transparent;
+  background: none;
+  border-radius: 0;
+  padding: 9px 0;
+  margin-bottom: -1px;
+  color: var(--muted);
+}
+.mode:hover { border-bottom-color: var(--rule); color: var(--ink-2); }
+.mode.active {
+  color: var(--ink);
+  border-bottom-color: var(--ink);
   font-weight: 700;
 }
-.slot.correct { color: #3377ff; border-color: #3377ff; }
-.slot.error { color: #e74c3c; border-color: #e74c3c; }
-.slot.current { border-color: #3377ff; position: relative; }
-.slot.current::after { content: ""; width: 2px; height: 28px; background: #3377ff; animation: pop 1s steps(1) infinite; }
-.slot.space { width: 16px; border: 0; }
-.ok-label { color: #12805c; font-weight: 700; }
-.bad-label { color: #e74c3c; font-weight: 700; }
-.phonetic, .example { color: #6b728a; }
-#dict-answer { margin-top: 16px; }
-#dict-notes { margin-top: 14px; }
-#dict-notes .article { display: inline-flex; flex-direction: column; background: #fff; border-radius: 10px; padding: 8px 12px; }
+
+.view-switch {
+  display: flex;
+  gap: 32px;
+  margin-top: 18px;
+  border-bottom: var(--hair) solid var(--rule);
+}
+
+/* --------------------------------------------------------------------------
+   统计 — the counter row. Numbers are monospaced so the columns line up.
+   -------------------------------------------------------------------------- */
+
+.stats {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 0;
+  margin-top: var(--gap);
+  border-top: var(--hair) solid var(--ink);
+  border-bottom: var(--hair) solid var(--rule);
+}
+
+.stat {
+  padding: 15px 18px 17px;
+  border-right: var(--hair) solid var(--rule-soft);
+}
+.stat:first-child { padding-left: 0; }
+.stat:last-child { border-right: 0; }
+
+.stat span {
+  display: block;
+  margin-bottom: 8px;
+  color: var(--muted);
+  font-size: 12.5px;
+}
+
+.stat strong {
+  font-family: var(--mono);
+  font-size: 30px;
+  font-weight: 600;
+  line-height: 1.1;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+}
+
+.stat strong small {
+  margin-left: 3px;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--muted);
+}
+
+/* The 当前节奏 stat carries its detail as a sibling <small>, not nested. */
+.stat > small {
+  display: block;
+  margin-top: 3px;
+  color: var(--muted);
+  font-family: var(--mono);
+  font-size: 12.5px;
+}
+
+/* --------------------------------------------------------------------------
+   连击 — combo meter
+   -------------------------------------------------------------------------- */
+
+.combo {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 30px;
+  margin-top: 12px;
+  padding-bottom: 12px;
+  border-bottom: var(--hair) solid var(--rule-soft);
+}
+
+.combo-track { flex: 1; height: 2px; background: var(--rule-soft); overflow: hidden; }
+.combo-track i {
+  display: block;
+  height: 100%;
+  width: 0;
+  background: var(--ink);
+  transition: width 140ms ease;
+}
+
+.combo b {
+  order: 2;
+  min-width: 82px;
+  font-family: var(--mono);
+  font-size: 13px;
+  color: var(--muted);
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+}
+
+/* The ×N pop is emphasis, not a correction — so it stays ink. */
+.combo-pop {
+  color: var(--ink);
+  font-family: var(--mono);
+  font-weight: 700;
+  animation: mark 260ms ease;
+}
+
+@keyframes mark {
+  from { transform: scale(0.82); opacity: 0; }
+  to   { transform: scale(1);    opacity: 1; }
+}
+
+/* --------------------------------------------------------------------------
+   模式与选篇 — mode row and article picker
+   -------------------------------------------------------------------------- */
+
+.modes {
+  display: flex;
+  gap: 28px;
+  align-items: center;
+  flex-wrap: wrap;
+  padding: 4px 0 12px;
+  border-bottom: var(--hair) solid var(--rule-soft);
+}
+
+.timed { gap: 12px; }
+.timed[hidden] { display: none; }
+.timed label { color: var(--muted); font-size: 13px; display: flex; align-items: center; gap: 6px; }
+.timed input {
+  width: 64px;
+  padding: 5px 8px;
+  border: var(--hair) solid var(--rule);
+  border-radius: 0;
+  background: var(--surface);
+  font-family: var(--mono);
+  text-align: center;
+}
+#timed-hint { color: var(--muted); font-size: 13px; }
+
+.picker { margin-top: var(--gap); }
+
+.picker-toggle {
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 16px;
+  padding: 0 0 10px;
+  border: 0;
+  border-bottom: var(--hair) solid var(--ink);
+  background: none;
+  text-align: left;
+}
+.picker-toggle:hover { border-bottom-color: var(--ink); }
+#picker-title { font-family: var(--song); font-weight: 700; font-size: 17px; }
+#picker-meta { color: var(--muted); font-size: 13px; font-family: var(--mono); }
+
+.picker-panel { display: grid; gap: 20px; margin-top: 18px; }
+.picker-panel.closed { display: none; }
+
+.group h3 {
+  margin: 0 0 10px;
+  font-family: var(--cjk);
+  font-size: 12.5px;
+  font-weight: 500;
+  color: var(--muted);
+}
+
+.articles { display: flex; flex-wrap: wrap; gap: 10px; }
+
+button.article {
+  max-width: 280px;
+  padding: 10px 14px 11px;
+  text-align: left;
+  border: var(--hair) solid var(--rule);
+}
+button.article strong { display: block; font-size: 14px; font-weight: 600; }
+button.article em {
+  display: block;
+  margin-top: 3px;
+  font-style: normal;
+  font-size: 12px;
+  color: var(--muted);
+}
+button.article.current {
+  background: var(--ink);
+  border-color: var(--ink);
+  color: var(--paper);
+}
+button.article.current em { color: rgba(244, 245, 247, 0.66); }
+
+.custom { margin-top: 18px; gap: 10px; }
+.custom input, .custom textarea {
+  flex: 1;
+  min-width: 180px;
+  padding: 9px 12px;
+  border: var(--hair) solid var(--rule);
+  border-radius: 0;
+  background: var(--surface);
+  resize: vertical;
+}
+.custom input::placeholder, .custom textarea::placeholder { color: #a2a9b6; }
+
+.hint {
+  margin: 16px 0 0;
+  max-width: 46em;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.7;
+}
+
+/* --------------------------------------------------------------------------
+   打字区 — the ruled writing surface
+   Monospace is the voice: it makes every column line up, and it makes
+   measureLine()'s character-width measurement exact rather than a guess.
+   -------------------------------------------------------------------------- */
+
+.stage {
+  margin-top: 14px;
+  padding: 1.125em 1.375em 1.625em;
+  border: var(--hair) solid var(--rule);
+  background-color: var(--surface);
+  min-height: 240px;
+  max-height: 460px;
+  overflow: auto;
+  line-height: 1.85;
+  cursor: text;
+}
+
+/* 印线 — the writing surface is ruled paper. Padding is in em and the ruling
+   is anchored from the padding-box top in em, so the lines stay on the
+   baselines when the 字号 control changes the font size.
+     1.125em padding-top + half-leading 0.331em + ascent 0.938em = 2.394em. */
+#stage {
+  font-family: var(--mono);
+  font-size: 16px;
+  background-image: repeating-linear-gradient(
+    to bottom,
+    var(--rule-line) 0 var(--hair),
+    transparent var(--hair) 1.85em
+  );
+  background-position: 0 2.394em;
+  background-repeat: repeat;
+}
+#stage:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+
+/* The ruling lives on the stage, not on each line — so the empty space below
+   the text is ruled too, the way a real page is. */
+.line { white-space: pre-wrap; }
+
+.ch { border-radius: 0; }
+
+/* Typed text is just ink. Only mistakes get the red pen. */
+.ch.ok    { color: var(--ink); }
+.ch.bad   { color: var(--surface); background: var(--red); text-decoration: line-through; }
+.ch.wait  { color: #a9b0bd; }
+.ch.caret { background: var(--ink); color: var(--surface); }
+
+.stage-actions { margin-top: 14px; gap: 10px; }
+
+/* --------------------------------------------------------------------------
+   复盘 — the marked-up page
+   -------------------------------------------------------------------------- */
+
+.review {
+  margin-top: var(--gap);
+  padding: 22px 0 0;
+  border-top: var(--hair) solid var(--ink);
+}
+.review h2 { margin: 0; font-size: 21px; }
+.review h3 {
+  margin: 26px 0 10px;
+  font-family: var(--cjk);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink-2);
+}
+
+.tabs { display: flex; gap: 28px; margin: 14px 0 18px; border-bottom: var(--hair) solid var(--rule); }
+.tabs button {
+  border: 0;
+  border-bottom: 2px solid transparent;
+  border-radius: 0;
+  background: none;
+  padding: 8px 0;
+  margin-bottom: -1px;
+  color: var(--muted);
+}
+.tabs button:hover { border-bottom-color: var(--rule); color: var(--ink-2); }
+.tabs button.primary {
+  background: none;
+  color: var(--ink);
+  font-weight: 700;
+  border-bottom-color: var(--ink);
+}
+
+.metrics, .cumul-metrics, .result-metrics {
+  display: grid;
+  gap: 0;
+  margin: 0 0 18px;
+  border-top: var(--hair) solid var(--rule);
+  border-bottom: var(--hair) solid var(--rule);
+}
+.metrics        { grid-template-columns: repeat(4, 1fr); }
+.cumul-metrics  { grid-template-columns: repeat(5, 1fr); }
+.result-metrics { grid-template-columns: repeat(3, 1fr); }
+
+.metric {
+  padding: 13px 16px 15px;
+  border-right: var(--hair) solid var(--rule-soft);
+}
+.metric:first-child { padding-left: 0; }
+.metric:last-child { border-right: 0; }
+.metric b {
+  display: block;
+  font-family: var(--mono);
+  font-size: 24px;
+  font-weight: 600;
+  line-height: 1.2;
+  font-variant-numeric: tabular-nums;
+}
+.metric span { color: var(--muted); font-size: 12.5px; }
+
+table { width: 100%; border-collapse: collapse; font-size: 14px; }
+th, td { text-align: left; padding: 9px 8px; border-bottom: var(--hair) solid var(--rule-soft); }
+th {
+  font-size: 12.5px;
+  font-weight: 500;
+  color: var(--muted);
+  border-bottom: var(--hair) solid var(--ink);
+}
+th:first-child, td:first-child { padding-left: 0; }
+th:last-child, td:last-child { padding-right: 0; }
+/* Counts and percentages are numbers — right-aligned so they compare. */
+th:nth-child(n + 2), td:nth-child(n + 2) { text-align: right; }
+td:nth-child(n + 2) { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+td.empty { color: var(--muted); font-family: var(--cjk); text-align: left; }
+
+/* 键盘热力图 — a map of mistakes, so red is the honest colour here. */
+.keys { display: grid; gap: 6px; margin-top: 10px; }
+.key-row { display: flex; justify-content: center; gap: 5px; }
+.key {
+  min-width: 36px;
+  height: 38px;
+  display: grid;
+  place-items: center;
+  border: var(--hair) solid var(--rule);
+  font-family: var(--mono);
+  font-size: 13px;
+}
+.key.low    { background: rgba(194, 54, 42, 0.10); }
+.key.medium { background: rgba(194, 54, 42, 0.30); }
+.key.high   { background: rgba(194, 54, 42, 0.58); color: var(--surface); }
+.key.none   { background: transparent; }
+
+.legend {
+  display: flex;
+  gap: 18px;
+  justify-content: center;
+  margin-top: 12px;
+  color: var(--muted);
+  font-size: 12px;
+}
+.swatch {
+  display: inline-block;
+  width: 11px;
+  height: 11px;
+  margin-right: 5px;
+  vertical-align: -1px;
+  border: var(--hair) solid var(--rule);
+}
+.swatch.low    { background: rgba(194, 54, 42, 0.10); }
+.swatch.medium { background: rgba(194, 54, 42, 0.30); }
+.swatch.high   { background: rgba(194, 54, 42, 0.58); }
+
+/* --------------------------------------------------------------------------
+   弹层 — sheets laid on the page
+   -------------------------------------------------------------------------- */
+
+.modal {
+  position: fixed;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: rgba(20, 22, 28, 0.45);
+}
+.modal[hidden] { display: none; }
+
+.dialog {
+  width: min(480px, 100%);
+  padding: 26px 28px 24px;
+  border: var(--hair) solid var(--ink);
+  background: var(--surface);
+}
+.dialog h2 { margin: 0 0 10px; font-size: 22px; }
+.dialog-actions { justify-content: flex-end; margin-top: 20px; }
+.dialog p { margin: 0 0 10px; }
+
+.pill, .tier { margin: 0; color: var(--ink); font-weight: 700; }
+.pill { font-size: 15px; }
+
+.score {
+  margin: 14px 0 2px;
+  font-family: var(--mono);
+  font-size: 58px;
+  line-height: 1;
+  font-weight: 600;
+  letter-spacing: -0.03em;
+}
+
+.toast {
+  position: fixed;
+  left: 50%;
+  bottom: 28px;
+  transform: translateX(-50%);
+  padding: 10px 18px;
+  border: var(--hair) solid var(--ink);
+  background: var(--ink);
+  color: var(--paper);
+  font-size: 13px;
+}
+.toast[hidden] { display: none; }
+
+/* --------------------------------------------------------------------------
+   单词听写 — 选单元
+   The unit grid is a ruled table, not a field of floating cards. Cells share
+   their hairlines, the way a 方格本 page does.
+   -------------------------------------------------------------------------- */
+
+#typing-view[hidden], #dictation-view[hidden],
+#dict-stats[hidden], #dict-progress[hidden], #dict-picker[hidden],
+#dict-card[hidden], #dict-report[hidden], #dict-answer[hidden] { display: none; }
+
+.dict-picker-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 16px;
+  margin-top: var(--gap);
+  padding-bottom: 12px;
+  border-bottom: var(--hair) solid var(--ink);
+}
+.dict-picker-head h2 { margin: 0; font-size: 21px; }
+.dict-picker-head .hint { margin: 0; font-family: var(--mono); }
+
+.dict-groups {
+  display: flex;
+  gap: 28px;
+  flex-wrap: wrap;
+  margin-top: 14px;
+  border-bottom: var(--hair) solid var(--rule);
+}
+
+.dict-units {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 0;
+  margin-top: 20px;
+  border: var(--hair) solid var(--rule);
+  border-right: 0;
+  border-bottom: 0;
+}
+
+.unit-card {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 14px 13px;
+  border: 0;
+  border-right: var(--hair) solid var(--rule);
+  border-bottom: var(--hair) solid var(--rule);
+  border-radius: 0;
+  background: transparent;
+  text-align: left;
+}
+.unit-card:hover { background: var(--surface); border-color: var(--ink); }
+
+/* The JS wraps title/range/count in an unclassed <span>; flatten it so the
+   three read as a two-line cell: 第 N 组  /  词汇 a–b      20 词 */
+.unit-card > span:not(.unit-check) {
+  flex: 1;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  column-gap: 10px;
+  row-gap: 3px;
+}
+.unit-card strong { grid-column: 1 / -1; font-size: 14px; font-weight: 600; }
+.unit-card .hint { margin: 0; font-size: 12px; }
+.unit-card .hint:last-of-type { text-align: right; font-family: var(--mono); }
+
+/* 对号 — a teacher's tick in the margin. */
+.unit-check {
+  flex: none;
+  color: var(--pass);
+  font-size: 17px;
+  line-height: 1;
+  font-weight: 700;
+}
+
+/* --------------------------------------------------------------------------
+   单词听写 — 听写卡
+   -------------------------------------------------------------------------- */
+
+.dict-card { margin-top: 18px; }
+
+.dict-audio {
+  display: flex;
+  gap: 20px;
+  align-items: center;
+  margin-bottom: 6px;
+  border-bottom: var(--hair) solid var(--rule);
+}
+#dict-play { border-color: var(--ink); padding: 8px 16px; }
+
+/* --------------------------------------------------------------------------
+   四线三格 — the four-line stave. The one bold thing on the page.
+   --------------------------------------------------------------------------
+   line-height:1 makes the flex box exactly one em tall, so the four lines can
+   be anchored from the bottom in em and stay exact at any font size.
+
+   The band heights are not guessed — they are the font's own letterforms,
+   measured off Consolas: x-height .500, ascender ('l') .679, descender ('p')
+   .179. Bands come out .179 / .500 / .179, which is what makes an 'l' touch
+   the top line and a 'p' touch the bottom line. The stave is literally a
+   measurement of the alphabet it is teaching.
+
+     line-height 1 -> half-leading (1 - 1.179)/2 = -.089, so the baseline sits
+     1 - (-.089 + .929) = .161em above the content-box bottom. Padding-bottom
+     .16em puts the padding-box bottom .16em below that:
+       baseline   .16 + .161 = .32em from the padding-box bottom
+       descender  .32 - .179 = .14em
+       x-height   .32 + .500 = .82em
+       ascender   .32 + .679 = 1.00em
+     and .16em padding-top leaves clearance above the top line.
+   -------------------------------------------------------------------------- */
+
+.slots {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: baseline;
+  gap: 0;
+  margin: 24px 0 6px;
+  font-family: var(--mono);
+  font-size: 34px;
+  line-height: 1;
+  overflow-x: auto;
+  padding: 0.16em 0;
+  background-image:
+    linear-gradient(var(--rule), var(--rule)),
+    linear-gradient(var(--rule), var(--rule)),
+    linear-gradient(var(--rule), var(--rule)),
+    linear-gradient(var(--rule), var(--rule));
+  background-size: 100% var(--hair);
+  background-repeat: no-repeat;
+  background-position:
+    left 0 bottom 1em,      /* 上线 — ascender */
+    left 0 bottom 0.82em,   /* 中线 — x-height */
+    left 0 bottom 0.32em,   /* 基线 */
+    left 0 bottom 0.14em;   /* 下线 — descender */
+}
+
+/* Each letter is positioned by its own baseline, so a 'b' rises into the top
+   band and a 'p' drops into the bottom band — the way the stave actually
+   works. No per-letter classification needed. */
+/* No `position: relative` here, deliberately. A positioned child of this flex
+   row makes Chrome give the span its own white backing store, which paints
+   over the stave behind it and leaves the four lines starting only after the
+   last letter. The caret below is a background for the same reason. */
+.slot {
+  min-width: 0.62em;
+  text-align: center;
+  color: var(--ink);
+}
+
+/* An empty block has no line box, so a slot with no letter yet would collapse
+   to zero height and take the whole stave with it — which is exactly the
+   state the card opens in. A zero-width space gives every slot a line box,
+   and therefore the right height and baseline, from the first frame. It has
+   no advance width, so centring is unaffected, and it is not a child node, so
+   `slot.textContent = …` in dictation.js leaves it alone. */
+.slot::before { content: "\200B"; }
+
+.slot.space { min-width: 0.42em; }
+
+.slot.correct { color: var(--ink); }
+.slot.error   { color: var(--red); }
+.slot.pending { color: transparent; }
+
+/* 笔尖 — a pen resting on the baseline, not a blinking cursor. Runs from the
+   baseline up to the ascender line, the height of a written letter. The
+   slot's own box bottom sits 0.16em above the padding-box bottom, so
+   `bottom 0.16em` inside it lands exactly on the baseline. */
+.slot.current {
+  background-image: linear-gradient(var(--ink), var(--ink));
+  background-size: 2px 0.68em;
+  background-repeat: no-repeat;
+  background-position: center bottom 0.16em;
+}
+
+#dict-answer {
+  margin-top: 20px;
+  padding-top: 18px;
+  border-top: var(--hair) solid var(--rule-soft);
+}
+#dict-answer h2 {
+  margin: 6px 0;
+  font-family: var(--mono);
+  font-size: 34px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+.ok-label, .bad-label { margin: 0; font-weight: 700; font-size: 14px; }
+.ok-label  { color: var(--pass); }
+.bad-label { color: var(--red); }
+.phonetic, .example { margin: 0 0 6px; color: var(--muted); font-size: 14px; }
+.example { max-width: 42em; color: var(--ink-2); }
+#dict-answer .dialog-actions { margin-top: 16px; }
+
+#dict-notes { margin-top: 26px; }
+#dict-notes h3 {
+  margin: 0 0 10px;
+  font-family: var(--cjk);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink-2);
+}
+#dict-notes .articles {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 0;
+}
+#dict-notes .article {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 10px 14px 11px;
+  border-left: var(--hair) solid var(--rule);
+  border-bottom: var(--hair) solid var(--rule);
+}
+#dict-notes .article strong { font-family: var(--mono); font-size: 14px; }
+#dict-notes .article em { font-style: normal; font-size: 12.5px; color: var(--muted); }
+
+#dict-progress {
+  margin: 16px 0 0;
+  font-family: var(--mono);
+  font-size: 13px;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+/* --------------------------------------------------------------------------
+   窄屏 — narrow screens
+   -------------------------------------------------------------------------- */
+
+@media (max-width: 900px) {
+  .dict-units { grid-template-columns: repeat(3, 1fr); }
+  .stats, .metrics, .cumul-metrics, .result-metrics { grid-template-columns: repeat(2, 1fr); }
+
+  .stat:nth-child(2n), .metric:nth-child(2n) { border-right: 0; }
+  .stat:nth-child(n + 3), .metric:nth-child(n + 3) {
+    border-top: var(--hair) solid var(--rule-soft);
+    padding-left: 0;
+  }
+}
+
+@media (max-width: 720px) {
+  .app { width: calc(100% - 28px); padding-top: 28px; }
+  .topbar { flex-direction: column; align-items: flex-start; gap: 14px; }
+  h1 { font-size: 25px; }
+  .dict-units { grid-template-columns: repeat(2, 1fr); }
+  .view-switch, .modes, .tabs, .dict-groups, .dict-audio { gap: 22px; }
+  .slots { font-size: 28px; }
+  #dict-answer h2 { font-size: 28px; }
+  .custom input, .custom textarea { min-width: 100%; }
+}
+
+/* --------------------------------------------------------------------------
+   减少动效 — respect the OS setting
+   -------------------------------------------------------------------------- */
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
