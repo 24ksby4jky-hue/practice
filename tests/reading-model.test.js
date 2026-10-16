@@ -6,11 +6,11 @@ import * as model from "../src/reading/reading-model.js";
    哪些文件算一本书
    -------------------------------------------------------------------------- */
 
-test("支持的书格式就是这五种，PDF 不在里面", () => {
-  assert.deepEqual(model.BOOK_EXTENSIONS, ["epub", "mobi", "azw3", "fb2", "cbz"]);
-  // PDF 和固定版式这一版不支持（见 vendor/README.md），所以它连「书」都不算，
-  // 选文件夹时直接被滤掉，不会在书架上点开才发现打不开
-  assert.equal(model.isBookFile("book.pdf"), false);
+test("书架和文件选择器支持电子书、PDF 和 Markdown", () => {
+  assert.deepEqual(model.BOOK_EXTENSIONS, ["epub", "mobi", "azw3", "fb2", "cbz", "pdf", "md", "markdown"]);
+  for (const name of ["book.pdf", "notes.md", "notes.markdown", "中文笔记.MD", "manual.PDF"]) {
+    assert.equal(model.isBookFile(name), true, name);
+  }
 });
 
 test("isBookFile 不区分大小写", () => {
@@ -21,7 +21,7 @@ test("isBookFile 不区分大小写", () => {
 
 test("isBookFile 拒绝别的格式、假扩展名和不是字符串的输入", () => {
   const rejected = [
-    "notes.txt", "book.pdf", "book.zip", "book", "book.", ".epub",
+    "notes.txt", "book.pdf.exe", "book.zip", "book", "book.", ".epub", ".md",
     // 点不在最后一段 —— 它是个 txt
     "my.epub.notes.txt",
     // 名字里含 epub 但没有扩展名
@@ -97,9 +97,10 @@ test("listBooks 滤掉不是书的文件", () => {
     { name: "apple.epub", size: 10 },
     { name: "notes.txt", size: 20 },
     { name: "manual.pdf", size: 30 },
+    { name: "notes.markdown", size: 35 },
     { name: "zebra.fb2", size: 40 }
   ]);
-  assert.deepEqual(books.map((b) => b.name), ["apple.epub", "zebra.fb2"]);
+  assert.deepEqual(books.map((b) => b.name), ["apple.epub", "manual.pdf", "notes.markdown", "zebra.fb2"]);
 });
 
 test("每本书都带齐书架要显示的东西", () => {

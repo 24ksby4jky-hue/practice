@@ -48,14 +48,20 @@ test("viewFor 决定点这个模块打开哪个页面", () => {
   assert.equal(model.viewFor("nope"), null);
 });
 
-test("基础练习下面是打字练习和单词听写", () => {
-  assert.deepEqual(model.PRACTICE.map((p) => p.id), ["typing", "dictation"]);
+test("基础练习下面是打字练习、单词听写和句子扩写", () => {
+  assert.deepEqual(model.PRACTICE.map((p) => p.id), ["typing", "dictation", "expansion"]);
   assert.equal(model.practiceById("typing").name, "打字练习");
   assert.equal(model.practiceById("dictation").name, "单词听写");
+  assert.equal(model.practiceById("expansion").name, "句子扩写练习");
   assert.equal(model.practiceById("nope"), null);
 });
 
 test("面包屑：打字和听写挂在基础练习下面，所以长一段", () => {
+  assert.deepEqual(model.trailFor("expansion"), [
+    { name: "首页", view: "home" },
+    { name: "基础练习", view: "basic" },
+    { name: "句子扩写练习", view: null }
+  ]);
   assert.deepEqual(model.trailFor("typing"), [
     { name: "首页", view: "home" },
     { name: "基础练习", view: "basic" },

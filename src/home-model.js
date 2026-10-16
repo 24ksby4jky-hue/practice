@@ -4,17 +4,18 @@
 //   status: "ready" 已经能用   "soon" 还没做，点进去是占位页
 //   view:   点它打开哪个页面。"soon" 是三个未开发模块共用的一页。
 const MODULES = [
-  { id: "basic", name: "基础练习", note: "打字练习 · 单词听写", status: "ready", view: "basic" },
+  { id: "basic", name: "基础练习", note: "打字练习 · 单词听写 · 句子扩写", status: "ready", view: "basic" },
   { id: "reading", name: "阅读", note: "读自己的书，或内置样本", status: "ready", view: "reading" },
   { id: "drill", name: "刷题", note: "按题型反复练", status: "soon", view: "soon" },
   { id: "mock", name: "模考", note: "整卷限时模拟", status: "soon", view: "soon" },
   { id: "notebook", name: "生词本", note: "听写里记下的词", status: "ready", view: "notebook" }
 ];
 
-// 基础练习下面的两项。打字练习和单词听写原本是平级 tab，现在收进这里。
+// 基础练习的入口，同时用作面包屑的名称来源。
 const PRACTICE = [
   { id: "typing", name: "打字练习", note: "按原文逐字输入" },
-  { id: "dictation", name: "单词听写", note: "8 个板块 · 4000 词" }
+  { id: "dictation", name: "单词听写", note: "8 个板块 · 4000 词" },
+  { id: "expansion", name: "句子扩写练习", note: "一题三步 · AI 提示与优化" }
 ];
 
 const ROOT = { name: "首页", view: "home" };

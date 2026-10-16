@@ -8,7 +8,7 @@ import { showReading } from "./reading/reading.js";
 const el = (id) => document.getElementById(id);
 
 const HOME_NOTE = "选一块开始。练习记录只留在这台设备上。";
-const BASIC_NOTE = "打字和听写都是逐字练，先把这一块练熟。";
+const BASIC_NOTE = "练输入，练拼写，再把一个句子写完整。";
 
 /* --------------------------------------------------------------------------
    模块格 —— 一格一个模块，印线共用

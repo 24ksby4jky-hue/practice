@@ -3,10 +3,9 @@
 // File System Access —— 那些在 library.js（选文件夹）、reader.js（读书页）
 // 和 reading.js（书架）里。
 
-// 能打开的重排版式。foliate-js 其实还认识 PDF 和固定版式 EPUB，
-// 但那两条路和 Readest 自己的构建绑死（见 vendor/README.md），这个版本不做，
-// 所以那两个扩展名在这里就是「不算书」，选文件夹时直接被滤掉。
-const BOOK_EXTENSIONS = ["epub", "mobi", "azw3", "fb2", "cbz"];
+// PDF 走独立的 PDF.js 阅读器，Markdown 转成 foliate 的重排版式。
+// 固定版式 EPUB 仍由 unsupported-format.js 明确拒绝。
+const BOOK_EXTENSIONS = ["epub", "mobi", "azw3", "fb2", "cbz", "pdf", "md", "markdown"];
 
 // 只认最后一段扩展名，而且要求它前面还有字符 ——
 // "my.epub.notes.txt" 不是书（扩展名是 txt），隐藏文件 ".epub" 也不是。

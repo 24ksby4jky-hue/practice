@@ -6,4 +6,5 @@
 //   3. home.js                建首页格子、注册阅读模块，最后落到首页
 import "./typing/app.js";
 import "./dictation/dictation.js";
+import "./expansion/expansion.js";
 import "./home.js";

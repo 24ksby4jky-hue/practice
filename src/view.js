@@ -11,6 +11,7 @@ const VIEW_CONTAINERS = {
   basic: "basic-view",
   typing: "typing-view",
   dictation: "dictation-view",
+  expansion: "expansion-view",
   notebook: "notebook-view",
   reading: "reading-view",
   reader: "reader-view",
@@ -21,6 +22,7 @@ const VIEW_CONTAINERS = {
 const IN_BASIC = ["typing", "dictation"];
 
 const handlers = {};
+const leaveHandlers = {};
 
 function el(id) {
   return document.getElementById(id);
@@ -66,6 +68,8 @@ function renderTrail(view, moduleId) {
 // 只换页面：不动任何业务状态，所以从打字页走到首页再回来，
 // 正文和已经输入的内容都在原处。
 function show(view, moduleId) {
+  const previous = document.body.dataset.view;
+  if (previous !== view && typeof leaveHandlers[previous] === "function") leaveHandlers[previous]();
   document.body.dataset.view = view;
 
   for (const key of Object.keys(VIEW_CONTAINERS)) {
@@ -99,8 +103,9 @@ function show(view, moduleId) {
   else pauseTypingClock();
 }
 
-function register(view, enter) {
+function register(view, enter, leave) {
   handlers[view] = enter;
+  if (typeof leave === "function") leaveHandlers[view] = leave;
 }
 
 // 有专门入口就交给它（它自己负责画内容再调 show），没有就直接换页。

@@ -32,6 +32,10 @@ search.js  tts.js  vendor/zip.js  vendor/fflate.js  LICENSE
   拷 worker / WASM 的 npm 脚本），`fixed-layout.js` 第一行还是个裸导入。
   这两个说明符由 `vite.config.js` 重定向到 `../unsupported-format.js`（会明确报错），
   好让 `foliate/` 这棵树保持和上游逐字一致，将来能直接覆盖。
+
+  阅读模块现已通过自己的 `../pdf-reader.js` 接入 npm 包 `pdfjs-dist`，在进入
+  foliate 之前按 `.pdf` 分流；仍不使用本 fork 的 PDF 和固定版式渲染分支。
+  Markdown 则通过 `../markdown-book.js` 转成安全的 HTML book，复用 foliate 的重排阅读。
 - `vendor/pdfjs/`（12MB）、`rollup/`、`tests/`、`ui/`、`reader.html`、`reader.js`、
   `package.json`、`eslint.config.js`
 - `footnotes.js`、`dict.js`、`uri-template.js`、`opds.js`、`quote-image.js` ——

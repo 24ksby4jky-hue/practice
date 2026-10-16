@@ -32,6 +32,9 @@ const SEARCH_LIMIT = 200;
 const HIGHLIGHT_COLOR = "#14161c";
 
 let view = null;
+let pdfReader = null;
+let openedBook = null;
+let openToken = 0;
 let position = null;
 // 当前这本书的身份和显示名。身份用来给进度选 localStorage 的键。
 let currentId = null;
@@ -89,6 +92,8 @@ function layout() {
     button("reader-prev", "上一页", "reader-tool", () => turn(-1)),
     button("reader-next", "下一页", "reader-tool", () => turn(1))
   );
+  // init() 完成之前分页器还持有导航锁，过早点击会被它静默丢弃。
+  for (const control of bar.querySelectorAll("button")) control.disabled = true;
 
   // 进度：一条印线，读过的那段用墨填。不是红色 —— 红只用来批改。
   const progress = document.createElement("div");
@@ -188,6 +193,7 @@ function currentChapterHref() {
 // 有没有 ./）。松一点比，别因为一个字符就标不上当前章。
 function sameTarget(a, b) {
   if (a === b) return true;
+  if (a.includes("#") && b.includes("#")) return a.replace(/^\.\//, "") === b.replace(/^\.\//, "");
   const strip = (href) => href.replace(/^\.\//, "").replace(/#.*$/, "");
   return strip(a) === strip(b);
 }
@@ -655,7 +661,7 @@ if (typeof document !== "undefined") {
 }
 
 function onKeyDown(event) {
-  if (!view) return;
+  if (!view && !pdfReader) return;
   // 只有读书页在屏幕上的时候才管 —— 别的页面上左右键各有各的用处
   if (document.body.dataset.view !== "reader") return;
   // 带修饰键的组合是浏览器/系统的，不碰
@@ -727,12 +733,16 @@ function saveProgress(loc) {
 }
 
 export function turn(delta) {
+  if (pdfReader) { pdfReader.turn(delta); return; }
   if (!view) return;
   if (delta > 0) view.next();
   else view.prev();
 }
 
 export function closeBook() {
+  openToken += 1;
+  pdfReader?.close();
+  pdfReader = null;
   if (view) {
     try {
       view.close();
@@ -742,6 +752,8 @@ export function closeBook() {
     view.remove();
     view = null;
   }
+  openedBook?.destroy?.();
+  openedBook = null;
   position = null;
   currentId = null;
   panel = null;
@@ -805,6 +817,15 @@ function watchResources(book) {
 // id 是这本书的身份（见 reading-model 的 bookId）—— 进度存在它名下。
 export async function openBook(source, label, id) {
   closeBook();
+  const token = openToken;
+  const extension = Model.extensionOf(source?.name);
+  if (extension === "pdf") {
+    const { createPdfReader } = await import("./pdf-reader.js");
+    if (token !== openToken) return false;
+    const reader = createPdfReader(el("reader-view"), label || source.name, id);
+    pdfReader = reader;
+    return reader.open(source);
+  }
   layout();
 
   currentId = id || null;
@@ -819,6 +840,7 @@ export async function openBook(source, label, id) {
 
   view = document.createElement("foliate-view");
   view.addEventListener("relocate", (event) => {
+    if (token !== openToken) return;
     position = event.detail || null;
     paintPosition(position);
     saveProgress(position);
@@ -828,6 +850,7 @@ export async function openBook(source, label, id) {
   // relocate 比首次渲染晚一拍，刚打开时读数会是空的 —— 分节载入时先亮一下，
   // 等 relocate 到了再补上章节名和真实进度。
   view.addEventListener("load", (event) => {
+    if (token !== openToken) return;
     if (!position) paintPosition({ fraction: 0, section: null, tocItem: null });
     // 兜底：injectStyleTag 找不到 <head> 时没插进去，这里用 DOM 补上
     const css = Model.typographyCss(settings);
@@ -850,9 +873,15 @@ export async function openBook(source, label, id) {
   try {
     // 先自己造 book，而不是把 File 直接丢给 open()：只有拿到 book 才能挂上
     // transformTarget 的那两个监听，而且必须赶在分节加载之前。
-    const book = await makeBook(source);
+    const book = extension === "md" || extension === "markdown"
+      ? await (await import("./markdown-book.js")).makeMarkdownBook(source, currentLabel)
+      : await makeBook(source);
+    if (token !== openToken) { book.destroy?.(); return false; }
+    openedBook = book;
+    const currentView = view;
     watchResources(book);
-    await view.open(book);
+    await currentView.open(book);
+    if (token !== openToken) { currentView.close(); return false; }
     // 页边距要在 init 之前给 —— init 会渲染第一页，等渲染完再改属性会白重排
     // 一次，位置也可能跟着动。
     if (view.renderer) {
@@ -865,8 +894,13 @@ export async function openBook(source, label, id) {
     // 会一直是 0 —— 屏幕上一片空白，而且不报任何错，最难查。
     const stored = currentId ? localStorage.getItem(Model.progressKey(currentId)) : null;
     const target = Model.restoreTarget(stored, canResolve(Model.parseProgress(stored).cfi));
-    await view.init({ lastLocation: target });
+    await currentView.init({ lastLocation: target });
+    if (token !== openToken) return false;
   } catch (error) {
+    if (token !== openToken) return false;
+    view?.close();
+    openedBook?.destroy?.();
+    openedBook = null;
     stage.textContent = "";
     const failed = document.createElement("p");
     failed.className = "reader-error";
@@ -877,6 +911,7 @@ export async function openBook(source, label, id) {
   }
   paintPosition(position);
   paintPanel();
+  for (const control of el("reader-view").querySelectorAll(".reader-bar button")) control.disabled = false;
   return true;
 }
 

@@ -1,7 +1,7 @@
 // 桩模块 —— 只为满足 Vite 的 import-analysis 而存在。见 vite.config.js。
 //
-// foliate-js 的 view.js 里有两个懒加载分支我们故意不支持：
-//   ./pdf.js           PDF。它的实现写死了 Readest 自己的构建：`@pdfjs` 是他们的
+// foliate-js 的 view.js 里有两个懒加载分支我们不直接接入：
+//   ./pdf.js           阅读模块改用自己的 pdf-reader.js。原实现写死了 Readest 的构建：`@pdfjs` 是他们的
 //                      Vite 别名，还有 `/vendor/pdfjs/` 绝对路径和一整套拷 worker /
 //                      WASM / cmaps 的 npm 脚本。
 //   ./fixed-layout.js  固定版式 EPUB。第一行是裸导入 construct-style-sheets-polyfill。
@@ -13,4 +13,4 @@
 // 放在模块顶层抛错是有意的：真打开这类书时，错误会沿着
 // `view.open()` → reader.js 的 catch 冒上来，显示成「打不开这本书：…」，
 // 而不是悄悄渲染出一片空白让人以为是坏了。
-throw new Error("这个版本只支持重排版的 EPUB / MOBI / FB2 / CBZ，不支持 PDF 和固定版式的书。");
+throw new Error("暂不支持固定版式 EPUB。PDF 请通过阅读页选择 .pdf 文件打开。");

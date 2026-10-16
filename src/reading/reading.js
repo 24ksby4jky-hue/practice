@@ -167,7 +167,7 @@ async function attach(handle) {
   setFolderLabel(books.length ? `${handle.name} · ${books.length} 本` : handle.name, "换一个文件夹");
 
   if (!books.length) {
-    paintMessage("这个文件夹里没有能打开的书。支持 EPUB / MOBI / AZW3 / FB2 / CBZ。");
+    paintMessage(`这个文件夹里没有能打开的书。支持 ${Model.BOOK_EXTENSIONS.join(" / ").toUpperCase()}。`);
     return;
   }
   paintBooks(books);

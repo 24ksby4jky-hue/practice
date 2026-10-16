@@ -616,7 +616,7 @@ td.empty { color: var(--muted); font-family: var(--cjk); text-align: left; }
 
 #typing-view[hidden], #dictation-view[hidden],
 #home-view[hidden], #basic-view[hidden], #notebook-view[hidden], #soon-view[hidden],
-#reading-view[hidden], #reader-view[hidden],
+#reading-view[hidden], #reader-view[hidden], #expansion-view[hidden],
 #subnav[hidden], #view-switch[hidden], .top-actions[hidden], #exit-btn[hidden],
 #dict-stats[hidden], #dict-progress[hidden], #dict-picker[hidden],
 #dict-card[hidden], #dict-report[hidden], #dict-answer[hidden] { display: none; }
@@ -1209,12 +1209,115 @@ td.empty { color: var(--muted); font-family: var(--cjk); text-align: left; }
 }
 .reader-stage foliate-view { display: block; width: 100%; height: 100%; }
 
+.pdf-page-label { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; }
+.pdf-page-label input { width: 70px; padding: 4px; }
+.pdf-page-label select { padding: 4px; }
+.pdf-stage { overflow: auto; padding: 16px; background: var(--surface); }
+.pdf-sheet { position: relative; margin-inline: auto; background: white; }
+.pdf-sheet canvas { display: block; }
+/* PDF.js TextLayer 的定位变量；文字透明覆盖在画布上，用于选择和复制。 */
+.pdf-text-layer {
+  position: absolute; inset: 0; overflow: clip; line-height: 1;
+  text-align: initial; transform-origin: 0 0; text-size-adjust: none;
+  forced-color-adjust: none; caret-color: CanvasText;
+  --min-font-size: 1;
+  --text-scale-factor: calc(var(--total-scale-factor) * var(--min-font-size));
+  --min-font-size-inv: calc(1 / var(--min-font-size));
+}
+.pdf-text-layer :is(span, br) {
+  color: transparent; position: absolute; white-space: pre; cursor: text;
+  transform-origin: 0% 0%;
+}
+.pdf-text-layer > :not(.markedContent), .pdf-text-layer .markedContent span:not(.markedContent) {
+  z-index: 1; --font-height: 0;
+  font-size: calc(var(--text-scale-factor) * var(--font-height));
+  --scale-x: 1; --rotate: 0deg;
+  transform: rotate(var(--rotate)) scaleX(var(--scale-x)) scale(var(--min-font-size-inv));
+}
+.pdf-text-layer .markedContent { display: contents; }
+.pdf-text-layer ::selection { background: #4979b955; }
+
 /* 打不开一本书 —— 是故障不是批改，所以不用红色 */
 .reader-error {
   margin: 24px;
   padding-top: 12px;
   border-top: var(--hair) solid var(--rule);
   color: var(--ink);
+}
+
+/* 句子扩写：沿用练习本的纸面、印线和墨色选中。 */
+.expansion-head { align-items: center; flex-wrap: wrap; gap: 16px; }
+.expansion-head p { margin: 3px 0 0; }
+.exp-actions, .exp-filter-bar, .exp-tabs, .exp-step-actions {
+  display: flex; align-items: center; flex-wrap: wrap; gap: 10px 16px;
+}
+.exp-actions button, .exp-tabs button { font-size: 13px; }
+#expansion-view button:disabled { opacity: .45; cursor: default; }
+.exp-tabs { border-bottom: var(--hair) solid var(--rule); padding: 0 0 12px; }
+.exp-tabs button { border: 0; background: transparent; border-bottom: 2px solid transparent; padding: 8px 2px; }
+.exp-tabs button.active { border-bottom-color: var(--ink); font-weight: 700; }
+.exp-messages p:empty { display: none; }
+.exp-error { color: var(--red); overflow-wrap: anywhere; }
+.exp-settings { padding: 20px 0 24px; border-bottom: var(--hair) solid var(--rule); }
+.exp-settings h3 { margin: 0 0 6px; font-size: 19px; }
+.exp-config-form { max-width: 720px; }
+.exp-field { display: flex; flex-direction: column; gap: 8px; margin: 16px 0 8px; font-size: 13px; }
+.exp-field input, .exp-inline-label select {
+  border: var(--hair) solid var(--rule); padding: 9px 12px;
+  background: var(--surface); border-radius: 0; min-width: 0;
+}
+.exp-field input { width: 100%; font-family: var(--mono); }
+.exp-advanced { margin-top: 14px; }
+#expansion-view summary { cursor: pointer; padding: 8px 0; }
+.exp-destination { overflow-wrap: anywhere; }
+.exp-welcome { padding: 28px 0; color: var(--muted); max-width: 48em; }
+.exp-filter-bar { justify-content: space-between; margin: 22px 0 16px; }
+.exp-filter-bar p { margin: 0; }
+.exp-inline-label { display: inline-flex; align-items: center; gap: 10px; font-size: 13px; }
+.exp-resume { padding: 0 0 18px; border-bottom: var(--hair) solid var(--rule); }
+.exp-exercise-row { display: flex; justify-content: space-between; align-items: center; gap: 16px; padding: 20px 0; border-bottom: var(--hair) solid var(--rule); }
+.exp-exercise-row p { margin: 0; }
+.exp-question-number { font-size: 12px; color: var(--muted); margin-right: 12px; white-space: nowrap; }
+.exp-exercise-row button { flex-shrink: 0; }
+.exp-english, .exp-core-sentence, .exp-final-sentence { font-family: var(--mono); overflow-wrap: anywhere; }
+.exp-english { font-size: 16px; }
+.exp-core { border-block: var(--hair) solid var(--ink); padding: 20px 0; margin: 18px 0 24px; }
+.exp-eyebrow { font-size: 12px; color: var(--muted); margin: 0 0 8px; }
+.exp-core-sentence { font-size: clamp(20px, 3vw, 28px); line-height: 1.5; margin: 4px 0 8px; }
+.exp-core .hint { margin: 0; }
+.exp-steps { display: grid; grid-template-columns: repeat(3, 1fr); padding: 0; list-style: none; margin: 0 0 24px; }
+.exp-steps li { font-size: 13px; color: var(--muted); border-bottom: 2px solid var(--rule); padding: 10px 0; }
+.exp-steps li.current { color: var(--ink); border-color: var(--ink); font-weight: 700; }
+.exp-steps li.done { color: var(--ink-2); }
+.exp-goal { font-size: 19px; margin: 0 0 18px; }
+.exp-answer {
+  width: 100%; min-height: 160px; resize: vertical; border: var(--hair) solid var(--rule);
+  border-radius: 0; padding: 16px 18px; font-family: var(--mono); font-size: 18px;
+  line-height: 1.9; background: var(--surface); color: var(--ink);
+}
+.exp-answer:read-only { color: var(--muted); }
+.exp-word-count { text-align: right; margin: 4px 0 16px; }
+.exp-feedback { margin-top: 24px; border-top: var(--hair) solid var(--ink); padding: 18px 0 8px; overflow-wrap: anywhere; }
+.exp-feedback h3 { font-size: 18px; margin: 0 0 12px; }
+.exp-feedback .exp-english { padding-left: 14px; border-left: 2px solid var(--ink); }
+.exp-feedback ul { padding-left: 22px; }
+.exp-reference { margin-top: 24px; border-block: var(--hair) solid var(--rule); padding: 4px 0; }
+.exp-reference > details { margin-left: 18px; }
+.exp-step-actions { justify-content: flex-end; margin-top: 24px; padding-top: 18px; border-top: var(--hair) solid var(--rule); }
+.exp-summary { padding: 22px 0; }
+.exp-summary h3 { font-size: 22px; margin: 0 0 22px; }
+.exp-final-sentence { font-size: 21px; line-height: 1.8; margin: 8px 0 12px; }
+.exp-review { margin: 20px 0; border-block: var(--hair) solid var(--rule); }
+.exp-review-step { padding: 12px 0; border-top: var(--hair) solid var(--rule-soft); }
+.exp-review-step h4 { font-size: 14px; margin: 0 0 8px; }
+.exp-record { border-bottom: var(--hair) solid var(--rule); padding: 8px 0; }
+.exp-record > summary { font-family: var(--mono); overflow-wrap: anywhere; }
+
+@media (max-width: 520px) {
+  .exp-exercise-row { align-items: flex-start; flex-direction: column; }
+  .exp-connection { width: 100%; }
+  .exp-steps li { font-size: 12px; }
+  .exp-answer { padding: 12px; font-size: 16px; }
 }
 
 /* --------------------------------------------------------------------------

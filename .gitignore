@@ -3,3 +3,5 @@ dist/
 .worktrees/
 .superpowers/
 docs/superpowers/
+test-results/
+playwright-report/
