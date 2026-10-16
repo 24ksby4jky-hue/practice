@@ -933,18 +933,28 @@ td.empty { color: var(--muted); font-family: var(--cjk); text-align: left; }
 
 .note-row {
   display: grid;
-  grid-template-columns: 220px 1fr auto;
+  grid-template-columns: 200px auto 1fr auto;
   gap: 14px;
   align-items: baseline;
   padding: 12px 0 13px;
   border-bottom: var(--hair) solid var(--rule);
 }
+/* 记住了的整行压暗 —— 一眼看得出哪些还要看。不用红，红只用来批改。 */
+.note-known .note-word,
+.note-known .note-meaning { color: var(--muted); }
 
 .note-word { font-family: var(--mono); font-size: 15px; font-weight: 600; }
 .note-phonetic { margin-left: 8px; font-family: var(--mono); font-size: 12.5px; color: var(--muted); }
 .note-pos { margin-right: 8px; font-size: 12.5px; color: var(--muted); }
 .note-meaning { color: var(--ink-2); }
 .note-example { display: block; margin-top: 3px; font-size: 12.5px; color: var(--muted); }
+/* 来源 —— 这个词是从哪个板块哪个单元来的。词表外来的词没有这一行。 */
+.note-source {
+  display: block;
+  margin-top: 4px;
+  font-size: 12px;
+  color: var(--muted);
+}
 /* 词表里已经没有这个词了 —— 标一下，但不删用户的记录 */
 .note-gone {
   margin-left: 8px;
@@ -953,9 +963,57 @@ td.empty { color: var(--muted); font-family: var(--cjk); text-align: left; }
   font-size: 12px;
   color: var(--muted);
 }
-.note-row button { padding: 4px 10px; border-color: var(--rule-soft); font-size: 12.5px; color: var(--ink-2); }
+
+/* 掌握程度三档。选中的用墨填 —— 全 app 唯一的「选中」写法。 */
+.note-levels { display: inline-flex; gap: 4px; }
+.note-level {
+  padding: 3px 8px;
+  border-color: var(--rule-soft);
+  font-size: 12px;
+  color: var(--muted);
+}
+.note-level:hover { border-color: var(--ink); color: var(--ink); }
+.note-level.active {
+  background: var(--ink);
+  border-color: var(--ink);
+  color: var(--paper);
+}
+
+.note-remove { padding: 4px 10px; border-color: var(--rule-soft); font-size: 12.5px; color: var(--ink-2); }
 .note-empty { margin-top: 18px; color: var(--muted); }
 .note-actions { display: flex; align-items: center; gap: 18px; margin-top: 22px; }
+
+/* 筛选 / 搜索 / 排序 —— 词攒到几十个之后，这三样比列表本身更值钱 */
+.note-toolbar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px 14px;
+  margin-top: 16px;
+}
+.note-filters { display: flex; flex-wrap: wrap; gap: 6px; }
+.note-filter {
+  padding: 4px 10px;
+  border-color: var(--rule-soft);
+  font-size: 12.5px;
+  color: var(--ink-2);
+}
+.note-filter.active {
+  background: var(--ink);
+  border-color: var(--ink);
+  color: var(--paper);
+}
+.note-search {
+  flex: 1 1 160px;
+  min-width: 0;
+  border: var(--hair) solid var(--rule);
+  border-radius: 0;
+  background: transparent;
+  padding: 6px 10px;
+  font-size: 13px;
+}
+.note-search:focus { outline: none; border-color: var(--ink); }
+.note-sort { padding: 4px 10px; border-color: var(--rule-soft); font-size: 12.5px; color: var(--ink-2); }
 
 /* --------------------------------------------------------------------------
    阅读 — 书架
@@ -1346,8 +1404,11 @@ td.empty { color: var(--muted); font-family: var(--cjk); text-align: left; }
   #dict-answer h2 { font-size: 28px; }
   .custom input, .custom textarea { min-width: 100%; }
   /* 生词本：词头占一整行，释义在左、删除在右 */
-  .note-row { grid-template-columns: 1fr auto; row-gap: 2px; }
+  .note-row { grid-template-columns: 1fr auto; row-gap: 6px; }
   .note-word-cell { grid-column: 1 / -1; }
+  /* 窄屏上掌握程度和删除并排占一行，正文另起一行 */
+  .note-levels { grid-column: 1; }
+  .note-body { grid-column: 1 / -1; }
 }
 
 /* 手机窄屏：模块格收成一列，外框照样闭合（6 格对 1 列整除） */

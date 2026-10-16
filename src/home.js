@@ -10,6 +10,12 @@ const el = (id) => document.getElementById(id);
 const HOME_NOTE = "选一块开始。练习记录只留在这台设备上。";
 const BASIC_NOTE = "练输入，练拼写，再把一个句子写完整。";
 
+// 生词本的查看状态（筛选 / 搜索 / 排序）。只活在内存里：这是「我这次想看什么」，
+// 不是数据。下次进来从「全部、按时间」重新开始，比记住上次筛到哪一档更好猜。
+let noteFilter = "all";
+let noteQuery = "";
+let noteSort = "time";
+
 /* --------------------------------------------------------------------------
    模块格 —— 一格一个模块，印线共用
    -------------------------------------------------------------------------- */
@@ -131,6 +137,8 @@ function saveNotes(list) {
 function noteRow(item) {
   const row = document.createElement("div");
   row.className = "note-row";
+  // 记住了的整行压暗 —— 一眼看得出哪些还要看。红只用来批改，这里不用红。
+  if (item.level === 2) row.classList.add("note-known");
 
   const head = document.createElement("span");
   head.className = "note-word-cell";
@@ -151,7 +159,27 @@ function noteRow(item) {
     head.append(phonetic);
   }
 
+  // 掌握程度三档，选中的用墨填 —— 和阅读模块的排版选项同一套写法。
+  // 这一档是参照欧路词典生词本的星级来的：光有词没有状态，攒到上限就只会越看越乱。
+  const levels = document.createElement("span");
+  levels.className = "note-levels";
+  for (const level of NotebookModel.LEVELS) {
+    const pick = document.createElement("button");
+    pick.type = "button";
+    pick.className = "note-level";
+    pick.textContent = level.name;
+    pick.setAttribute("aria-pressed", String(item.level === level.id));
+    if (item.level === level.id) pick.classList.add("active");
+    pick.addEventListener("click", () => {
+      saveNotes(NotebookModel.setLevel(storedNotes(), item.word, level.id));
+      // 整页重画：左边那排筛选按钮上的计数也要跟着变
+      paintNotebook();
+    });
+    levels.append(pick);
+  }
+
   const body = document.createElement("span");
+  body.className = "note-body";
   const meaning = document.createElement("span");
   meaning.className = "note-meaning";
   if (!item.missing && item.pos) {
@@ -168,25 +196,51 @@ function noteRow(item) {
     example.textContent = item.example;
     body.append(example);
   }
+  // 来源是现查的（见 notebook-model 的 sourceIndex），词表改了它跟着改，
+  // 所以不存在「存了一份过期的」这个问题。
+  if (item.source) {
+    const source = document.createElement("span");
+    source.className = "note-source";
+    source.textContent = `${item.source.boardName} · 第 ${item.source.unit} 单元`;
+    body.append(source);
+  }
 
   const remove = document.createElement("button");
   remove.type = "button";
+  remove.className = "note-remove";
   remove.textContent = "删除";
   remove.addEventListener("click", () => {
     saveNotes(NotebookModel.removeNote(storedNotes(), item.word));
     paintNotebook();
   });
 
-  row.append(head, body, remove);
+  row.append(head, levels, body, remove);
   return row;
+}
+
+// 补齐音标、词性、例句和来源。三处都要这份数据，所以只写一遍。
+function notebookData() {
+  const index = NotebookModel.wordIndex(DictationWords);
+  return NotebookModel.enrich(storedNotes(), (word) => index[word] || null,
+    NotebookModel.sourceIndex(DictationWords));
+}
+
+function visibleNotes(all) {
+  return NotebookModel.sortNotes(
+    NotebookModel.filterNotes(all, noteFilter, noteQuery), noteSort);
+}
+
+function noteEmptyText() {
+  return noteQuery.trim() ? `没有匹配「${noteQuery.trim()}」的词。` : "这一档还没有词。";
 }
 
 function paintNotebook() {
   const box = el("notebook-view");
   box.textContent = "";
 
-  const index = NotebookModel.wordIndex(DictationWords);
-  const list = NotebookModel.enrich(storedNotes(), (word) => index[word] || null);
+  const all = notebookData();
+  const counts = NotebookModel.countsByLevel(all);
+  const list = visibleNotes(all);
 
   const head = document.createElement("div");
   head.className = "page-head";
@@ -194,11 +248,14 @@ function paintNotebook() {
   title.textContent = "生词本";
   const count = document.createElement("p");
   count.className = "hint";
-  count.textContent = list.length ? `共 ${list.length} 词 · 上限 ${NotebookModel.NOTE_LIMIT}` : "";
+  // 「还要看多少」比「一共多少」有用 —— 记住了的不必再看
+  count.textContent = all.length
+    ? `共 ${all.length} 词 · 还要看 ${counts[0] + counts[1]} · 上限 ${NotebookModel.NOTE_LIMIT}`
+    : "";
   head.append(title, count);
   box.append(head);
 
-  if (!list.length) {
+  if (!all.length) {
     const empty = document.createElement("p");
     empty.className = "note-empty";
     empty.textContent = "还没有生词。听写时拼错的词会自动记在这里。";
@@ -206,10 +263,16 @@ function paintNotebook() {
     return;
   }
 
-  const rows = document.createElement("div");
-  rows.className = "note-list";
-  list.forEach((item) => rows.append(noteRow(item)));
-  box.append(rows);
+  box.append(noteToolbar(counts));
+
+  if (!list.length) {
+    const empty = document.createElement("p");
+    empty.className = "note-empty";
+    empty.textContent = noteEmptyText();
+    box.append(empty);
+  } else {
+    box.append(noteRows(list));
+  }
 
   const actions = document.createElement("div");
   actions.className = "note-actions";
@@ -229,6 +292,78 @@ function paintNotebook() {
   });
   actions.append(clear);
   box.append(actions);
+}
+
+function noteRows(list) {
+  const rows = document.createElement("div");
+  rows.className = "note-list";
+  list.forEach((item) => rows.append(noteRow(item)));
+  return rows;
+}
+
+// 筛选 / 搜索 / 排序。这三样回答的都是「我该看哪些词」—— 词攒到几十个之后，
+// 它们比列表本身更值钱。参照的是欧路词典生词本按星级和时间筛的做法。
+function noteToolbar(counts) {
+  const bar = document.createElement("div");
+  bar.className = "note-toolbar";
+
+  const filters = document.createElement("div");
+  filters.className = "note-filters";
+  const tabs = [["all", `全部 ${counts.all}`]]
+    .concat(NotebookModel.LEVELS.map((level) => [level.id, `${level.name} ${counts[level.id]}`]));
+  for (const [value, label] of tabs) {
+    const tab = document.createElement("button");
+    tab.type = "button";
+    tab.className = "note-filter";
+    tab.textContent = label;
+    tab.setAttribute("aria-pressed", String(noteFilter === value));
+    if (noteFilter === value) tab.classList.add("active");
+    tab.addEventListener("click", () => {
+      noteFilter = value;
+      paintNotebook();
+    });
+    filters.append(tab);
+  }
+
+  const search = document.createElement("input");
+  search.type = "search";
+  search.className = "note-search";
+  search.placeholder = "找词或释义";
+  search.value = noteQuery;
+  search.setAttribute("aria-label", "在生词本里搜索");
+  search.addEventListener("input", () => {
+    noteQuery = search.value;
+    // 只换列表那一块。整页重画会让输入框每敲一个字就掉一次焦点。
+    repaintNoteList();
+  });
+
+  const sort = document.createElement("button");
+  sort.type = "button";
+  sort.className = "note-sort";
+  sort.textContent = noteSort === "level" ? "按掌握程度" : "按加入时间";
+  sort.title = "切换排序";
+  sort.addEventListener("click", () => {
+    noteSort = noteSort === "level" ? "time" : "level";
+    paintNotebook();
+  });
+
+  bar.append(filters, search, sort);
+  return bar;
+}
+
+// 搜索时只换列表那一块 —— 输入框留在原地，焦点和光标都不会丢。
+function repaintNoteList() {
+  const old = el("notebook-view").querySelector(".note-list, .note-empty");
+  if (!old) return;
+  const list = visibleNotes(notebookData());
+  if (list.length) {
+    old.replaceWith(noteRows(list));
+    return;
+  }
+  const empty = document.createElement("p");
+  empty.className = "note-empty";
+  empty.textContent = noteEmptyText();
+  old.replaceWith(empty);
 }
 
 function showNotebook() {
