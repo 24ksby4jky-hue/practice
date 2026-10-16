@@ -911,4 +911,8 @@ window.addEventListener("resize", measureLine);
 applyArticle(0);
 
 // 听写、首页、视图切换都要写 localStorage 或控制打字台的时钟，走这几个出口
-export { persistJson, pauseTypingClock, resumeTypingClock, closeTypingOverlays, setNavigateAway };
+// showToast 从阅读模块也要用（书架连接失败、书打不开）—— 全 app 只有这一条
+// 提示条，别再抄一份出来。
+export {
+  persistJson, showToast, pauseTypingClock, resumeTypingClock, closeTypingOverlays, setNavigateAway
+};

@@ -958,15 +958,102 @@ td.empty { color: var(--muted); font-family: var(--cjk); text-align: left; }
 .note-actions { display: flex; align-items: center; gap: 18px; margin-top: 22px; }
 
 /* --------------------------------------------------------------------------
+   阅读 — 书架
+   一格一本书，沿用首页方格本的做法：容器只画上边和左边、每格画自己的右边和
+   下边，格子补满整行外框才闭合。没有卡片、没有阴影、没有封面图 ——
+   封面要解压整本书才拿得到，第一步不值这个代价。
+   -------------------------------------------------------------------------- */
+
+.shelf-bar {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-top: var(--gap);
+  padding-bottom: 12px;
+  border-bottom: var(--hair) solid var(--rule);
+}
+.shelf-name { color: var(--muted); font-size: 13px; }
+
+/* 单选文件那条降级路：真 input 藏在 label 底下，看起来和旁边的按钮一样 */
+.shelf-file {
+  display: inline-flex;
+  align-items: center;
+  position: relative;
+  overflow: hidden;
+  border: var(--hair) solid var(--rule);
+  padding: 8px 14px;
+  cursor: pointer;
+  transition: border-color 120ms ease;
+}
+.shelf-file:hover { border-color: var(--ink); }
+.shelf-file input {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+/* 书架区没有书格时的那句话（可能带一个按钮，比如「重新连接」） */
+.shelf-note {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-top: var(--gap);
+}
+.shelf-note p { margin: 0; color: var(--muted); font-size: 13px; }
+
+.shelf-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0;
+  margin-top: var(--gap);
+  border: var(--hair) solid var(--rule);
+  border-right: 0;
+  border-bottom: 0;
+}
+
+.shelf-cell {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  min-height: 96px;
+  padding: 14px 16px 16px;
+  border: 0;
+  border-right: var(--hair) solid var(--rule);
+  border-bottom: var(--hair) solid var(--rule);
+  border-radius: 0;
+  background: transparent;
+  text-align: left;
+}
+.shelf-cell:hover { background: var(--surface); border-color: var(--ink); }
+.shelf-cell strong {
+  font-family: var(--song);
+  font-size: 16px;
+  font-weight: 700;
+}
+/* 文件名用等宽 —— 它和书名常常只差几个字符，等宽才一眼看得出那是文件名 */
+.shelf-file-name {
+  font-family: var(--mono);
+  font-size: 11.5px;
+  color: var(--muted);
+  word-break: break-all;
+}
+/* 空格 —— 方格本里空着的一格，读起来是纸，不是控件 */
+.shelf-cell.blank { pointer-events: none; }
+.shelf-progress {
+  margin-top: auto;
+  font-family: var(--mono);
+  font-size: 11.5px;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink-2);
+}
+
+/* --------------------------------------------------------------------------
    阅读 — 读书页
    书的内容在 foliate-js 自己的 iframe 里，有它自己的排版和主题；下面这些
    只管我们自己那圈界面，所以照旧是纸面、印线、墨色选中。
    -------------------------------------------------------------------------- */
-
-.reader-chooser {
-  margin-top: var(--gap);
-  border-top: var(--hair) solid var(--ink);
-}
 
 .reader-row {
   display: flex;
@@ -980,18 +1067,137 @@ td.empty { color: var(--muted); font-family: var(--cjk); text-align: left; }
 .reader-bar {
   display: flex;
   align-items: center;
-  gap: 14px;
+  flex-wrap: wrap;
+  gap: 8px 14px;
   margin-top: var(--gap);
   padding-bottom: 10px;
   border-bottom: var(--hair) solid var(--rule);
 }
-.reader-title { flex: 1; color: var(--ink-2); font-size: 13px; }
+.reader-title { flex: 1 1 auto; color: var(--ink-2); font-size: 13px; }
 .reader-pos {
   font-family: var(--mono);
   font-size: 12.5px;
   color: var(--muted);
   font-variant-numeric: tabular-nums;
 }
+
+/* 工具条上的按钮比正文按钮小一号 —— 它们是页边的批注工具，不是主角 */
+.reader-tool { padding: 4px 10px; font-size: 12.5px; color: var(--ink-2); }
+.reader-tool:hover { border-color: var(--ink); color: var(--ink); }
+/* 墨 fill = 这个应用唯一的「选中」状态（和 button.primary 同一条规则） */
+.reader-tool.active {
+  background: var(--ink);
+  border-color: var(--ink);
+  color: var(--paper);
+}
+
+/* 进度：一条印线，读过的那段用墨填。不是红色 —— 红只用来批改。 */
+.reader-progress {
+  height: 2px;
+  margin-top: 10px;
+  background: var(--rule-line);
+}
+.reader-progress-fill {
+  display: block;
+  width: 0;
+  height: 100%;
+  background: var(--ink);
+  transition: width 200ms ease;
+}
+
+/* 目录 / 排版浮层。和正文一样是有格的纸：只有上下的印线，没有卡片。
+   注意 [hidden] 那条 —— 这里给了 display，不显式写一条就会被盖掉，
+   面板会永远开着。 */
+.reader-panel {
+  display: block;
+  max-height: 34vh;
+  overflow: auto;
+  margin-top: 12px;
+  padding: 4px 2px 10px;
+  border-bottom: var(--hair) solid var(--rule);
+}
+#reader-panel[hidden] { display: none; }
+.reader-hint { margin: 8px 2px; color: var(--muted); font-size: 13px; }
+
+.toc-item {
+  display: block;
+  width: 100%;
+  border: 0;
+  border-bottom: var(--hair) solid var(--rule-line);
+  border-left: 2px solid transparent;
+  border-radius: 0;
+  padding: 7px 10px 7px calc(10px + var(--depth, 0) * 16px);
+  background: transparent;
+  text-align: left;
+  font-size: 13.5px;
+}
+.toc-item:hover { background: var(--surface); border-bottom-color: var(--rule); }
+/* 当前章用墨标，不用红 */
+.toc-item.current {
+  border-left-color: var(--ink);
+  color: var(--ink);
+  font-weight: 600;
+}
+
+.type-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 7px 2px;
+  border-bottom: var(--hair) solid var(--rule-line);
+}
+.type-row:last-child { border-bottom: 0; }
+.type-label {
+  width: 62px;
+  color: var(--muted);
+  font-size: 12.5px;
+}
+.type-option { padding: 4px 9px; font-size: 12.5px; color: var(--ink-2); }
+.type-option.active {
+  background: var(--ink);
+  border-color: var(--ink);
+  color: var(--paper);
+}
+
+/* 搜索：一条输入 + 一串结果。结果沿用目录那种「整行一条、印线分隔」的排法。 */
+.search-bar { display: flex; gap: 8px; margin-bottom: 10px; }
+.search-bar input[type="search"] {
+  flex: 1;
+  min-width: 0;
+  border: var(--hair) solid var(--rule);
+  border-radius: 0;
+  background: transparent;
+  padding: 7px 10px;
+  font-size: 13px;
+}
+.search-bar input[type="search"]:focus { outline: none; border-color: var(--ink); }
+
+.search-chapter {
+  margin: 10px 2px 4px;
+  color: var(--muted);
+  font-size: 12px;
+  letter-spacing: 0.04em;
+}
+/* 摘要是书里的句子，所以用书的字体，不用界面字体 */
+.search-hit {
+  display: block;
+  width: 100%;
+  border: 0;
+  border-bottom: var(--hair) solid var(--rule-line);
+  border-radius: 0;
+  padding: 7px 10px;
+  background: transparent;
+  text-align: left;
+  font-family: var(--song);
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--ink-2);
+}
+.search-hit:hover { background: var(--surface); color: var(--ink); }
+/* 命中那截标重一点 —— 用墨，不用红 */
+.search-match { color: var(--ink); font-weight: 700; }
+.search-pre, .search-post { color: var(--muted); }
 
 /* 高度必须给足 —— foliate 的 paginator 把 iframe 撑成整条多栏再靠位移翻页，
    容器高度是 0 的话它算不出页，屏幕上就是一片空白。 */
