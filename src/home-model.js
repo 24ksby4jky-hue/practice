@@ -15,7 +15,7 @@ const MODULES = [
 const PRACTICE = [
   { id: "typing", name: "打字练习", note: "按原文逐字输入" },
   { id: "dictation", name: "单词听写", note: "8 个板块 · 4000 词" },
-  { id: "expansion", name: "句子扩写练习", note: "一题三步 · AI 提示与优化" }
+  { id: "expansion", name: "句子扩写练习", note: "一句主张 · AI 优化与融合成段" }
 ];
 
 const ROOT = { name: "首页", view: "home" };

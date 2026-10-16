@@ -1337,34 +1337,50 @@ td.empty { color: var(--muted); font-family: var(--cjk); text-align: left; }
 .exp-exercise-row p { margin: 0; }
 .exp-question-number { font-size: 12px; color: var(--muted); margin-right: 12px; white-space: nowrap; }
 .exp-exercise-row button { flex-shrink: 0; }
-.exp-english, .exp-core-sentence, .exp-final-sentence { font-family: var(--mono); overflow-wrap: anywhere; }
+.exp-english, .exp-core-sentence, .exp-paragraph, .exp-optimized-text { font-family: var(--mono); overflow-wrap: anywhere; }
 .exp-english { font-size: 16px; }
 .exp-core { border-block: var(--hair) solid var(--ink); padding: 20px 0; margin: 18px 0 24px; }
 .exp-eyebrow { font-size: 12px; color: var(--muted); margin: 0 0 8px; }
 .exp-core-sentence { font-size: clamp(20px, 3vw, 28px); line-height: 1.5; margin: 4px 0 8px; }
 .exp-core .hint { margin: 0; }
-.exp-steps { display: grid; grid-template-columns: repeat(3, 1fr); padding: 0; list-style: none; margin: 0 0 24px; }
-.exp-steps li { font-size: 13px; color: var(--muted); border-bottom: 2px solid var(--rule); padding: 10px 0; }
-.exp-steps li.current { color: var(--ink); border-color: var(--ink); font-weight: 700; }
-.exp-steps li.done { color: var(--ink-2); }
-.exp-goal { font-size: 19px; margin: 0 0 18px; }
 .exp-answer {
   width: 100%; min-height: 160px; resize: vertical; border: var(--hair) solid var(--rule);
   border-radius: 0; padding: 16px 18px; font-family: var(--mono); font-size: 18px;
   line-height: 1.9; background: var(--surface); color: var(--ink);
 }
 .exp-answer:read-only { color: var(--muted); }
-.exp-word-count { text-align: right; margin: 4px 0 16px; }
-.exp-feedback { margin-top: 24px; border-top: var(--hair) solid var(--ink); padding: 18px 0 8px; overflow-wrap: anywhere; }
-.exp-feedback h3 { font-size: 18px; margin: 0 0 12px; }
-.exp-feedback .exp-english { padding-left: 14px; border-left: 2px solid var(--ink); }
-.exp-feedback ul { padding-left: 22px; }
-.exp-reference { margin-top: 24px; border-block: var(--hair) solid var(--rule); padding: 4px 0; }
-.exp-reference > details { margin-left: 18px; }
-.exp-step-actions { justify-content: flex-end; margin-top: 24px; padding-top: 18px; border-top: var(--hair) solid var(--rule); }
+/* 论点改写和每个论证块共用一块「稿纸」：左边一道竖线，像练习本上的分栏。 */
+.exp-block { border-left: 2px solid var(--rule); padding: 0 0 4px 20px; margin: 0 0 28px; }
+.exp-block-head { display: flex; align-items: baseline; flex-wrap: wrap; gap: 6px 14px; margin-bottom: 8px; }
+.exp-block-head h3 { font-size: 19px; margin: 0; }
+.exp-block-head p { margin: 0; }
+.exp-block-head button { margin-left: auto; font-size: 13px; }
+.exp-block .hint { margin: 6px 0; }
+.exp-block-input { min-height: 96px; font-size: 16px; }
+.exp-block-status:empty { display: none; }
+.exp-block-status { color: var(--red); }
+.exp-choices { margin: 10px 0 0; }
+.exp-choice { display: flex; align-items: center; gap: 8px; font-size: 13px; padding: 4px 0; cursor: pointer; }
+.exp-optimized-text {
+  font-size: 15px; margin: 6px 0 10px; padding-left: 14px;
+  border-left: 2px solid var(--ink); color: var(--ink-2); line-height: 1.8;
+}
+.exp-args-section { margin: 8px 0 24px; }
+.exp-args-section > h3 { font-size: 19px; margin: 0 0 6px; }
+.exp-add-arg { margin-top: 4px; }
+.exp-method-list { display: flex; flex-direction: column; gap: 2px; padding: 8px 0 4px; }
+.exp-method {
+  display: block; width: 100%; text-align: left; border: 0; border-top: var(--hair) solid var(--rule-soft);
+  background: transparent; padding: 12px 4px; cursor: pointer;
+}
+.exp-method strong { display: block; font-size: 15px; margin-bottom: 4px; }
+.exp-method p { margin: 2px 0; font-size: 12px; color: var(--muted); }
+.exp-method:hover strong { text-decoration: underline; }
+.exp-merge { border-top: var(--hair) solid var(--rule); padding-top: 18px; margin-top: 8px; }
+.exp-merge h3 { font-size: 19px; margin: 0 0 6px; }
 .exp-summary { padding: 22px 0; }
 .exp-summary h3 { font-size: 22px; margin: 0 0 22px; }
-.exp-final-sentence { font-size: 21px; line-height: 1.8; margin: 8px 0 12px; }
+.exp-paragraph { font-size: 18px; line-height: 1.95; margin: 8px 0 12px; white-space: pre-wrap; }
 .exp-review { margin: 20px 0; border-block: var(--hair) solid var(--rule); }
 .exp-review-step { padding: 12px 0; border-top: var(--hair) solid var(--rule-soft); }
 .exp-review-step h4 { font-size: 14px; margin: 0 0 8px; }
@@ -1374,8 +1390,10 @@ td.empty { color: var(--muted); font-family: var(--cjk); text-align: left; }
 @media (max-width: 520px) {
   .exp-exercise-row { align-items: flex-start; flex-direction: column; }
   .exp-connection { width: 100%; }
-  .exp-steps li { font-size: 12px; }
   .exp-answer { padding: 12px; font-size: 16px; }
+  .exp-block { padding-left: 14px; }
+  .exp-block-head button { margin-left: 0; }
+  .exp-actions { width: 100%; }
 }
 
 /* --------------------------------------------------------------------------
