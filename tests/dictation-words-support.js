@@ -1,5 +1,5 @@
-const assert = require("node:assert/strict");
-const { isDictationWord } = require("../dictation-model.js");
+import assert from "node:assert/strict";
+import { isDictationWord } from "../src/dictation/dictation-model.js";
 
 const POS_RE = /^(n|v|adj|adv|prep|conj|pron)\.$/;
 const PHONETIC_RE = /^\/[^/]+\/$/;
@@ -37,4 +37,4 @@ function assertBoard(board, expected) {
   assert.equal(seen.size, 500);
 }
 
-module.exports = { assertBoard };
+export { assertBoard };

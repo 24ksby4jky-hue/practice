@@ -1,7 +1,7 @@
-const test = require("node:test");
-const assert = require("node:assert/strict");
-const board = require("../../dictation/words/daily-life.js");
-const { assertBoard } = require("../dictation-words-support.js");
+import test from "node:test";
+import assert from "node:assert/strict";
+import board from "../../src/dictation/words/daily-life.js";
+import { assertBoard } from "../dictation-words-support.js";
 
 // Words removed in review: too basic, too rare as single objects, off theme, or not a lemma.
 const REMOVED = [

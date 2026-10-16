@@ -1,12 +1,4 @@
-(function (root, factory) {
-  const board = factory();
-  if (typeof module === "object" && module.exports) module.exports = board;
-  else {
-    root.DictationWords = root.DictationWords || [];
-    root.DictationWords.push(board);
-  }
-})(typeof globalThis !== "undefined" ? globalThis : this, function () {
-  return {
+export default {
     id: "daily-life",
     name: "日常生活",
     units: [
@@ -561,5 +553,4 @@
         { word: "dingy", pos: "adj.", phonetic: "/ˈdɪndʒi/", meaning: "昏暗肮脏的", example: "The dingy kitchen needed a good clean." }
       ] }
     ]
-  };
-});
+};

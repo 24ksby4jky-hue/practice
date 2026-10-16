@@ -1,3 +1,5 @@
+import * as TypingModel from "./typing-model.js";
+
 function keysFor(id) {
   return TypingModel.storageKeys(id);
 }
@@ -527,7 +529,7 @@ function escapeHtml(value) {
 }
 
 function onKeyDown(event) {
-  if (document.body.dataset.view === "dictation") return;
+  if (document.body.dataset.view !== "typing") return;
   const target = event.target;
   if (target && (target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.isContentEditable)) return;
   if (state.resultOpen || state.exitOpen) return;
@@ -811,6 +813,15 @@ function discardAndReset() {
   render();
 }
 
+// 换页时把两个浮层收起来，否则结果弹窗会盖在首页上。
+// 它俩都是 position:fixed; inset:0 的全屏遮罩，不收掉点不动任何东西。
+function closeTypingOverlays() {
+  if (!state.resultOpen && !state.exitOpen) return;
+  state.resultOpen = false;
+  state.exitOpen = false;
+  renderModes();
+}
+
 $("mode-free").addEventListener("click", () => switchMode("free"));
 $("mode-timed").addEventListener("click", () => switchMode("timed"));
 $("timed-min").addEventListener("change", (event) => {
@@ -850,7 +861,17 @@ $("exit-cancel").addEventListener("click", () => {
   state.exitOpen = false;
   renderModes();
 });
-$("exit-confirm").addEventListener("click", discardAndReset);
+// 离开打字台要去哪一页 —— 由 view.js 注入，而不是这里反向 import view.js。
+// 两边互相 import 会成环，注入就没有这个问题。
+let navigateAway = () => {};
+function setNavigateAway(fn) {
+  if (typeof fn === "function") navigateAway = fn;
+}
+
+$("exit-confirm").addEventListener("click", () => {
+  discardAndReset();
+  navigateAway("basic");
+});
 $("result-review").addEventListener("click", () => {
   state.resultOpen = false;
   state.reviewOpen = true;
@@ -885,7 +906,9 @@ $("stage").addEventListener("click", () => $("stage").focus());
 document.addEventListener("keydown", onKeyDown);
 window.addEventListener("resize", measureLine);
 
-document.body.dataset.view = "typing";
+// 打开落在哪一页由 home.js 决定。这里只把打字台准备好 —— 它此刻是隐藏的，
+// 量不出宽度，所以 measureLine() 要等真正进入打字页时再调（见 showTyping）。
 applyArticle(0);
-measureLine();
-$("stage").focus();
+
+// 听写、首页、视图切换都要写 localStorage 或控制打字台的时钟，走这几个出口
+export { persistJson, pauseTypingClock, resumeTypingClock, closeTypingOverlays, setNavigateAway };

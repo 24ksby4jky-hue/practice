@@ -1,7 +1,7 @@
-const test = require("node:test");
-const assert = require("node:assert/strict");
-const board = require("../../dictation/words/city-travel.js");
-const { assertBoard } = require("../dictation-words-support.js");
+import test from "node:test";
+import assert from "node:assert/strict";
+import board from "../../src/dictation/words/city-travel.js";
+import { assertBoard } from "../dictation-words-support.js";
 
 const REMOVED = [
   "lodgings", "wanderlust", "vigil", "patrol", "surveillance", "checkpoint", "barricade", "cordon", "siren", "evacuate",

@@ -163,11 +163,39 @@ button.ghost:hover { border-color: var(--ink); color: var(--ink); }
   font-weight: 700;
 }
 
+/* 面包屑 + 模块内 tab，共用一条底线。首页是根，整行收起。 */
+.subnav {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 24px;
+  margin-top: 18px;
+  border-bottom: var(--hair) solid var(--rule);
+}
+
+.crumbs {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  /* 抬到和 tab 文字同一条基线附近 */
+  padding-bottom: 9px;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.crumb {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--ink-2);
+}
+.crumb:hover { color: var(--ink); border-bottom: var(--hair) solid var(--ink); }
+.crumb-sep { color: var(--rule); }
+.crumb-current { color: var(--ink); font-weight: 700; }
+
 .view-switch {
   display: flex;
   gap: 32px;
-  margin-top: 18px;
-  border-bottom: var(--hair) solid var(--rule);
 }
 
 /* --------------------------------------------------------------------------
@@ -587,6 +615,8 @@ td.empty { color: var(--muted); font-family: var(--cjk); text-align: left; }
    -------------------------------------------------------------------------- */
 
 #typing-view[hidden], #dictation-view[hidden],
+#home-view[hidden], #basic-view[hidden], #notebook-view[hidden], #soon-view[hidden],
+#subnav[hidden], #view-switch[hidden], .top-actions[hidden], #exit-btn[hidden],
 #dict-stats[hidden], #dict-progress[hidden], #dict-picker[hidden],
 #dict-card[hidden], #dict-report[hidden], #dict-answer[hidden] { display: none; }
 
@@ -809,11 +839,130 @@ td.empty { color: var(--muted); font-family: var(--cjk); text-align: left; }
 }
 
 /* --------------------------------------------------------------------------
+   首页 — 模块格
+   模块是一页方格，不是五张浮起来的卡片：格子共用印线，像方格本。
+   格子数取 6（5 个模块 + 一个空格），所以 3 / 2 / 1 列都整行填满，
+   容器只画上边和左边、每格画自己的右边和下边，外框永远闭合。
+   -------------------------------------------------------------------------- */
+
+.module-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0;
+  margin-top: var(--gap);
+  border: var(--hair) solid var(--rule);
+  border-right: 0;
+  border-bottom: 0;
+}
+
+.module-cell {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+  min-height: 112px;
+  padding: 16px 18px 18px;
+  border: 0;
+  border-right: var(--hair) solid var(--rule);
+  border-bottom: var(--hair) solid var(--rule);
+  border-radius: 0;
+  background: transparent;
+  text-align: left;
+}
+.module-cell:hover { background: var(--surface); border-color: var(--ink); }
+.module-cell strong {
+  font-family: var(--song);
+  font-size: 18px;
+  font-weight: 700;
+}
+.module-cell .hint { margin: 0; font-size: 12.5px; color: var(--muted); }
+
+/* 空格 —— 方格本里空着的一格，读起来是纸，不是控件 */
+.module-cell.blank { pointer-events: none; }
+
+/* 已建 / 建设中靠字区分，不靠颜色 —— 红只用来批改。 */
+.module-cell .cell-go { margin-top: auto; font-size: 12.5px; color: var(--ink-2); }
+.module-cell .cell-soon {
+  /* 标记本身就是一条印线 */
+  margin-top: auto;
+  padding-bottom: 2px;
+  border-bottom: var(--hair) solid var(--rule);
+  font-size: 11.5px;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+}
+.module-cell.soon strong { color: var(--ink-2); }
+
+/* 页面标题行 —— 和听写选单元那一行同一个写法 */
+.page-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 16px;
+  margin-top: var(--gap);
+  padding-bottom: 12px;
+  border-bottom: var(--hair) solid var(--ink);
+}
+.page-head h2 { margin: 0; font-size: 21px; }
+.page-head .hint { margin: 0; font-family: var(--mono); color: var(--muted); }
+
+/* --------------------------------------------------------------------------
+   建设中 — 占位页
+   一张有格的纸，不是一张空状态插图。
+   -------------------------------------------------------------------------- */
+
+.wip-sheet {
+  margin-top: var(--gap);
+  padding: 44px 0 48px;
+  border-top: var(--hair) solid var(--ink);
+  border-bottom: var(--hair) solid var(--rule);
+}
+.wip-sheet h2 { margin: 0 0 8px; font-size: 24px; }
+.wip-sheet p { margin: 0; color: var(--ink-2); }
+.wip-sheet .hint { margin-top: 10px; font-size: 13px; }
+
+/* --------------------------------------------------------------------------
+   生词本 — 词条
+   -------------------------------------------------------------------------- */
+
+.note-list {
+  margin-top: 18px;
+  border-top: var(--hair) solid var(--ink);
+}
+
+.note-row {
+  display: grid;
+  grid-template-columns: 220px 1fr auto;
+  gap: 14px;
+  align-items: baseline;
+  padding: 12px 0 13px;
+  border-bottom: var(--hair) solid var(--rule);
+}
+
+.note-word { font-family: var(--mono); font-size: 15px; font-weight: 600; }
+.note-phonetic { margin-left: 8px; font-family: var(--mono); font-size: 12.5px; color: var(--muted); }
+.note-pos { margin-right: 8px; font-size: 12.5px; color: var(--muted); }
+.note-meaning { color: var(--ink-2); }
+.note-example { display: block; margin-top: 3px; font-size: 12.5px; color: var(--muted); }
+/* 词表里已经没有这个词了 —— 标一下，但不删用户的记录 */
+.note-gone {
+  margin-left: 8px;
+  padding-bottom: 1px;
+  border-bottom: var(--hair) solid var(--rule);
+  font-size: 12px;
+  color: var(--muted);
+}
+.note-row button { padding: 4px 10px; border-color: var(--rule-soft); font-size: 12.5px; color: var(--ink-2); }
+.note-empty { margin-top: 18px; color: var(--muted); }
+.note-actions { display: flex; align-items: center; gap: 18px; margin-top: 22px; }
+
+/* --------------------------------------------------------------------------
    窄屏 — narrow screens
    -------------------------------------------------------------------------- */
 
 @media (max-width: 900px) {
   .dict-units { grid-template-columns: repeat(3, 1fr); }
+  .module-grid { grid-template-columns: repeat(2, 1fr); }
   .stats, .metrics, .cumul-metrics, .result-metrics { grid-template-columns: repeat(2, 1fr); }
 
   .stat:nth-child(2n), .metric:nth-child(2n) { border-right: 0; }
@@ -832,6 +981,17 @@ td.empty { color: var(--muted); font-family: var(--cjk); text-align: left; }
   .slots { font-size: 28px; }
   #dict-answer h2 { font-size: 28px; }
   .custom input, .custom textarea { min-width: 100%; }
+  /* 生词本：词头占一整行，释义在左、删除在右 */
+  .note-row { grid-template-columns: 1fr auto; row-gap: 2px; }
+  .note-word-cell { grid-column: 1 / -1; }
+}
+
+/* 手机窄屏：模块格收成一列，外框照样闭合（6 格对 1 列整除） */
+@media (max-width: 520px) {
+  .module-grid { grid-template-columns: 1fr; }
+  .module-cell { min-height: 96px; }
+  .subnav { flex-direction: column; align-items: flex-start; gap: 12px; }
+  .crumbs { padding-bottom: 0; }
 }
 
 /* --------------------------------------------------------------------------

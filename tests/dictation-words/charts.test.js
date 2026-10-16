@@ -1,9 +1,9 @@
-const test = require("node:test");
-const assert = require("node:assert/strict");
-const board = require("../../dictation/words/charts.js");
-const campus = require("../../dictation/words/campus.js");
-const academic = require("../../dictation/words/academic-writing.js");
-const { assertBoard } = require("../dictation-words-support.js");
+import test from "node:test";
+import assert from "node:assert/strict";
+import board from "../../src/dictation/words/charts.js";
+import campus from "../../src/dictation/words/campus.js";
+import academic from "../../src/dictation/words/academic-writing.js";
+import { assertBoard } from "../dictation-words-support.js";
 
 const wordsOf = (b) => b.units.flatMap((unit) => unit.words.map((entry) => entry.word.toLowerCase()));
 

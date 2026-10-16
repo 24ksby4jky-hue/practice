@@ -1,12 +1,4 @@
-(function (root, factory) {
-  const board = factory();
-  if (typeof module === "object" && module.exports) module.exports = board;
-  else {
-    root.DictationWords = root.DictationWords || [];
-    root.DictationWords.push(board);
-  }
-})(typeof globalThis !== "undefined" ? globalThis : this, function () {
-  return {
+export default {
     id: "work",
     name: "工作与职业",
     units: [
@@ -561,5 +553,4 @@
         { word: "co-owner", pos: "n.", phonetic: "/ˌkəʊˈəʊnə/", meaning: "共同所有人", example: "The co-owner signed the payroll." },
       ] }
     ]
-  };
-});
+};

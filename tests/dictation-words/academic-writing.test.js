@@ -1,8 +1,8 @@
-const test = require("node:test");
-const assert = require("node:assert/strict");
-const board = require("../../dictation/words/academic-writing.js");
-const campus = require("../../dictation/words/campus.js");
-const { assertBoard } = require("../dictation-words-support.js");
+import test from "node:test";
+import assert from "node:assert/strict";
+import board from "../../src/dictation/words/academic-writing.js";
+import campus from "../../src/dictation/words/campus.js";
+import { assertBoard } from "../dictation-words-support.js";
 
 test("academic-writing board has 25 units of 20 valid words", () => {
   assertBoard(board, { id: "academic-writing", name: "学术写作" });

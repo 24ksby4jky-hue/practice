@@ -1,12 +1,4 @@
-(function (root, factory) {
-  const board = factory();
-  if (typeof module === "object" && module.exports) module.exports = board;
-  else {
-    root.DictationWords = root.DictationWords || [];
-    root.DictationWords.push(board);
-  }
-})(typeof globalThis !== "undefined" ? globalThis : this, function () {
-  return {
+export default {
     id: "campus",
     name: "校园生活",
     units: [
@@ -561,5 +553,4 @@
         { word: "yearbook", pos: "n.", phonetic: "/ˈjɪəbʊk/", meaning: "毕业纪念册", example: "Her photo is on the last page of the yearbook." }
       ] }
     ]
-  };
-});
+};

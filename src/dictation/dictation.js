@@ -1,5 +1,11 @@
-(function () {
-const NOTE_KEY = "dictationNotebook:guest";
+import * as DictationModel from "./dictation-model.js";
+import * as NotebookModel from "../notebook-model.js";
+import * as View from "../view.js";
+import { persistJson } from "../typing/app.js";
+// 板块顺序由 words/index.js 决定 —— 听写和生词本共用同一份，不再靠
+// index.html 里 <script> 标签的加载顺序，也不再挂在 globalThis 上。
+import DictationWords from "./words/index.js";
+
 const dict = {
   boardId: "campus",
   unitNumber: 1,
@@ -69,16 +75,11 @@ function backToUnits() {
 }
 
 function noteList() {
-  try { return JSON.parse(localStorage.getItem(NOTE_KEY) || "[]"); }
-  catch { return []; }
+  return NotebookModel.readNotes(localStorage.getItem(NotebookModel.NOTE_KEY));
 }
 
 function saveNote(word) {
-  const list = noteList();
-  if (!list.some((item) => item.word === word.word)) {
-    list.unshift({ word: word.word, meaning: word.meaning, at: Date.now() });
-    persistJson(NOTE_KEY, list.slice(0, 40));
-  }
+  persistJson(NotebookModel.NOTE_KEY, NotebookModel.addNote(noteList(), word, Date.now()));
 }
 
 function lettersOf(word) {
@@ -536,20 +537,8 @@ function layout() {
   document.addEventListener("keydown", onKey);
 }
 
-function setHeading(title, subtitle) {
-  document.querySelector(".topbar h1").textContent = title;
-  document.querySelector(".topbar p").textContent = subtitle;
-  document.title = title;
-}
-
 function showDictation() {
-  document.body.dataset.view = "dictation";
-  pauseTypingClock();
-  setHeading("单词听写", DictationModel.DICTATION_SUBTITLE);
-  document.getElementById("typing-view").hidden = true;
-  root.hidden = false;
-  document.getElementById("view-typing").classList.remove("active");
-  document.getElementById("view-dictation").classList.add("active");
+  View.setHeading("单词听写", DictationModel.DICTATION_SUBTITLE);
   stopTimer();
   stopSpeak();
   const screen = DictationModel.enterDictation();
@@ -557,12 +546,12 @@ function showDictation() {
   dict.index = 0;
   dict.words = [];
   showPicker();
+  // 换页、停时钟、切换 tab、画面包屑都归 View 管了
+  View.show("dictation");
 }
 
 function showTyping() {
-  document.body.dataset.view = "typing";
-  resumeTypingClock();
-  setHeading("打字练习", "按原文逐字输入。错字会标红并继续前进，Backspace 可以回退。");
+  View.setHeading("打字练习", "按原文逐字输入。错字会标红并继续前进，Backspace 可以回退。");
   stopTimer();
   stopSpeak();
   const screen = DictationModel.enterDictation();
@@ -573,13 +562,17 @@ function showTyping() {
   dict.started = false;
   dict.sessionDone = false;
   clearAttempt();
-  document.getElementById("typing-view").hidden = false;
-  root.hidden = true;
-  document.getElementById("view-typing").classList.add("active");
-  document.getElementById("view-dictation").classList.remove("active");
+  View.show("typing");
+  // 先显示出来再量：隐藏时 #stage 宽度是 0，measureLine 会直接返回，
+  // 行长就会一直停在默认值上。这一步不能省。
+  measureLine();
+  document.getElementById("stage").focus();
 }
 
 layout();
 document.getElementById("view-dictation").addEventListener("click", showDictation);
 document.getElementById("view-typing").addEventListener("click", showTyping);
-})();
+
+// 首页和基础练习从这里进来，走的是同一套复位逻辑
+View.register("typing", showTyping);
+View.register("dictation", showDictation);

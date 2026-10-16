@@ -1,12 +1,4 @@
-(function (root, factory) {
-  const board = factory();
-  if (typeof module === "object" && module.exports) module.exports = board;
-  else {
-    root.DictationWords = root.DictationWords || [];
-    root.DictationWords.push(board);
-  }
-})(typeof globalThis !== "undefined" ? globalThis : this, function () {
-  const board = {
+export default {
     id: "academic-writing",
     name: "学术写作",
     units: [
@@ -561,6 +553,4 @@
         { word: "corollary", pos: "n.", phonetic: "/kəˈrɒləri/", meaning: "推论", example: "The corollary follows directly from the first claim." }
       ] }
     ]
-  };
-  return board;
-});
+};

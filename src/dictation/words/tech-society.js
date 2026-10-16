@@ -1,12 +1,4 @@
-(function (root, factory) {
-  const board = factory();
-  if (typeof module === "object" && module.exports) module.exports = board;
-  else {
-    root.DictationWords = root.DictationWords || [];
-    root.DictationWords.push(board);
-  }
-})(typeof globalThis !== "undefined" ? globalThis : this, function () {
-  return {
+export default {
     id: "tech-society",
     name: "科技与社会",
     units: [
@@ -561,5 +553,4 @@
         { word: "mother-tongue", pos: "n.", phonetic: "/ˈmʌðə tʌŋ/", meaning: "母语", example: "She teaches in her mother-tongue." }
       ] }
     ]
-  };
-});
+};

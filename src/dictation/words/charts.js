@@ -1,12 +1,4 @@
-(function (root, factory) {
-  const board = factory();
-  if (typeof module === "object" && module.exports) module.exports = board;
-  else {
-    root.DictationWords = root.DictationWords || [];
-    root.DictationWords.push(board);
-  }
-})(typeof globalThis !== "undefined" ? globalThis : this, function () {
-  const board = {
+export default {
     id: "charts",
     name: "图表描述",
     units: [
@@ -561,6 +553,4 @@
         { word: "concave", pos: "adj.", phonetic: "/kɒnˈkeɪv/", meaning: "凹形的", example: "The curve is concave in the first five years." }
       ] }
     ]
-  };
-  return board;
-});
+};

@@ -1,6 +1,6 @@
-const test = require("node:test");
-const assert = require("node:assert/strict");
-const model = require("../dictation-model.js");
+import test from "node:test";
+import assert from "node:assert/strict";
+import * as model from "../src/dictation/dictation-model.js";
 
 test("dictation model core behavior", () => {
   assert.equal(model.shouldMarkUnitDone({ kind: "unit", resultCount: 20, skipped: true }), true);

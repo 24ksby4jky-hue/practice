@@ -1,7 +1,7 @@
-const test = require("node:test");
-const assert = require("node:assert/strict");
-const board = require("../../dictation/words/work.js");
-const { assertBoard } = require("../dictation-words-support.js");
+import test from "node:test";
+import assert from "node:assert/strict";
+import board from "../../src/dictation/words/work.js";
+import { assertBoard } from "../dictation-words-support.js";
 
 const REMOVED = [
   "insubordination", "telemarketer", "flexitime", "boardroom", "headquarters", "subsidiary", "conglomerate", "startup", "enterprise", "franchise",

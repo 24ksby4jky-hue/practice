@@ -1,12 +1,4 @@
-(function (root, factory) {
-  const board = factory();
-  if (typeof module === "object" && module.exports) module.exports = board;
-  else {
-    root.DictationWords = root.DictationWords || [];
-    root.DictationWords.push(board);
-  }
-})(typeof globalThis !== "undefined" ? globalThis : this, function () {
-  return {
+export default {
     id: "health-environment",
     name: "健康与环境",
     units: [
@@ -561,5 +553,4 @@
         { word: "lethality", pos: "n.", phonetic: "/liːˈθæləti/", meaning: "致死性", example: "The lethality of the effluent exceeded the limit." }
       ] }
     ]
-  };
-});
+};

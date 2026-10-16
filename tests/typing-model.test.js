@@ -1,6 +1,6 @@
-const test = require("node:test");
-const assert = require("node:assert/strict");
-const model = require("../typing-model.js");
+import test from "node:test";
+import assert from "node:assert/strict";
+import * as model from "../src/typing/typing-model.js";
 
 function charsOf(text, maxChars) {
   return model.layout(text, maxChars).chars.map((item) => item.char).join("");
@@ -156,8 +156,14 @@ test("writeJson reports quota failures and stores JSON", () => {
   assert.equal(saved.k, "{\"a\":1}");
 });
 
-test("typing view is every view except dictation", () => {
+test("只是打字页才算打字页", () => {
   assert.equal(model.isTypingView("typing"), true);
-  assert.equal(model.isTypingView(undefined), true);
   assert.equal(model.isTypingView("dictation"), false);
+  // 首页和后面几块都不是打字页。这条原来断言的是 true（"typing" 以外的都算），
+  // 加了首页之后那样会把限时时钟和统计一起弄错。
+  assert.equal(model.isTypingView("home"), false);
+  assert.equal(model.isTypingView("basic"), false);
+  assert.equal(model.isTypingView("notebook"), false);
+  assert.equal(model.isTypingView("soon"), false);
+  assert.equal(model.isTypingView(undefined), false);
 });

@@ -1,12 +1,4 @@
-(function (root, factory) {
-  const board = factory();
-  if (typeof module === "object" && module.exports) module.exports = board;
-  else {
-    root.DictationWords = root.DictationWords || [];
-    root.DictationWords.push(board);
-  }
-})(typeof globalThis !== "undefined" ? globalThis : this, function () {
-  return {
+export default {
     id: "city-travel",
     name: "城市与出行",
     units: [
@@ -561,5 +553,4 @@
         { word: "waterway", pos: "n.", phonetic: "/ˈwɔːtəweɪ/", meaning: "水道，航道", example: "The waterway is busy with barges all year." }
       ] }
     ]
-  };
-});
+};
