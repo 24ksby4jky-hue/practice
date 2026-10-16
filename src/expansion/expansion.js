@@ -60,6 +60,11 @@ function change(action) {
   render();
 }
 function focusEditor() { document.getElementById("exp-answer")?.focus(); }
+// randomUUID 只在 HTTPS 和 localhost 上存在。用 http://IP 打开时退回本地会话号，避免点「开始扩写」直接抛错。
+function sessionId() {
+  return globalThis.crypto?.randomUUID?.()
+    ?? `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
+}
 
 function render() {
   host.replaceChildren();
@@ -238,7 +243,7 @@ function renderPicker() {
 
 function startExercise(id, selectedLevel = level) {
   change(() => {
-    store.session = newSession(id, selectedLevel, crypto.randomUUID(), Date.now());
+    store.session = newSession(id, selectedLevel, sessionId(), Date.now());
     topic = exerciseById(id).topic;
     level = selectedLevel;
     picking = false;
