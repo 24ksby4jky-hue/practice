@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { EXERCISES, TOPICS, exerciseById } from "../src/expansion/exercises.js";
 import { EXERCISES as LEGACY } from "../src/expansion/legacy-exercises.js";
 import { DEFAULT_CONFIG, newSession, advanceSession, previousStep, normalizeConfig,
-  readStore, cleanStore, answerError, parseFeedback, recordCompleted } from "../src/expansion/expansion-model.js";
+  readStore, cleanStore, answerError, parseFeedback, recordCompleted, RECORD_LIMIT } from "../src/expansion/expansion-model.js";
 
 const fresh = () => newSession("campus-books", "basic", "session-1", 1000);
 const feedback = { status: "已完成细节补充。", needs_revision: false, corrections: [],
@@ -90,6 +90,28 @@ test("三步承接原句，保存用户提交原稿与 AI 建议，完成后记�
   const records = recordCompleted(recordCompleted([], session), session);
   assert.equal(records.length, 1);
   assert.equal(records[0].steps[0].adopted, true);
+});
+
+test("完成记录只留最近 RECORD_LIMIT 条 —— 本地存储不能无限涨", () => {
+  // 每完成一题就多一条记录，而且每次落盘都要把全部记录重新序列化一遍，
+  // 所以这个上限同时也是「打字时那一下」不随使用时间变慢的保证。
+  const completed = (id) => {
+    let session = newSession("campus-books", "basic", id, 1000);
+    for (let index = 0; index < 3; index += 1) {
+      session.draft = `Students read books, step ${index + 1}.`;
+      session = advanceSession(session, 2000 + index);
+    }
+    return session;
+  };
+  let records = [];
+  for (let index = 0; index < RECORD_LIMIT + 5; index += 1) {
+    records = recordCompleted(records, completed(`session-${index}`));
+  }
+  assert.equal(records.length, RECORD_LIMIT);
+  // 最新的在最前面，最老的被挤出去
+  assert.equal(records[0].id, `session-${RECORD_LIMIT + 4}`);
+  assert.ok(!records.some((item) => item.id === "session-0"));
+  assert.equal(new Set(records.map((item) => item.id)).size, RECORD_LIMIT);
 });
 
 test("返回上一步恢复原稿，修改后截断下游旧步骤", () => {

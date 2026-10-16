@@ -24,6 +24,7 @@ let busy = null;
 let controller = null;
 let requestSerial = 0;
 let storageFailed = false;
+let saveTimer = 0;
 
 const node = (tag, className, text) => {
   const element = document.createElement(tag);
@@ -38,13 +39,50 @@ function button(id, text, action, primary = false) {
   element.addEventListener("click", action);
   return element;
 }
+// render() 是整块重画的，所以 <details> 的展开状态得自己记着 —— 否则点任何
+// 一下（切步骤、点 AI、换个 tab）都会把「本地提示与参考表达」又合上。
+// 每个可折叠块给一个稳定的 key，重画前后按 key 把展开状态搬过去。
+const openPanels = new Set();
+function panel(className, key) {
+  const item = node("details", className);
+  item.dataset.panel = key;
+  return item;
+}
+function rememberPanels() {
+  // 不清空整个表：换到「我的句子」再换回来时，那个块这一轮根本没被渲染，
+  // 清空就等于把它的展开状态丢了。所以只按眼前这几个块更新 ——
+  // 开着的记进来，用户主动合上的就删掉。
+  for (const item of host.querySelectorAll("details[data-panel]")) {
+    if (item.open) openPanels.add(item.dataset.panel);
+    else openPanels.delete(item.dataset.panel);
+  }
+}
+function restorePanels() {
+  for (const item of host.querySelectorAll("details[data-panel]")) {
+    if (openPanels.has(item.dataset.panel)) item.open = true;
+  }
+}
+
 function save() {
+  // 立刻落盘就把还没到点的那次定时写取消掉，别让它稍后再覆盖一次
+  clearTimeout(saveTimer);
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(cleanStore(store)));
     storageFailed = false;
   } catch { storageFailed = true; }
   const warning = document.getElementById("exp-storage-warning");
   if (warning) warning.textContent = storageFailed ? "本地保存失败，当前内容仍在页面中，请复制备份后再离开。" : "";
+}
+// 打字时不要每敲一个键就把整份存储重写一遍 —— 里面还装着全部完成记录。
+// 离散动作（切步骤、AI 回来、离开页面）仍然立刻落盘。
+function saveSoon() {
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(save, 400);
+}
+// 延迟落盘留下的那个小窗口：正好在这 400ms 里关标签页，最后敲的那下就没了。
+// pagehide 在关页面和换页时都会发，比 beforeunload 可靠。
+if (typeof window !== "undefined") {
+  window.addEventListener("pagehide", () => { if (saveTimer) save(); });
 }
 function cancelRequest(message = "") {
   requestSerial += 1;
@@ -67,6 +105,7 @@ function sessionId() {
 }
 
 function render() {
+  rememberPanels();
   host.replaceChildren();
   const head = node("div", "page-head expansion-head");
   const title = node("div");
@@ -102,10 +141,17 @@ function render() {
   if (settingsOpen) host.append(renderSettings());
   if (screen === "records") renderRecords();
   else if (!connected && !offline) {
-    host.append(node("p", "exp-welcome", "先填写 API Key 并测试连接，即可使用 AI 提示和优化。也可以先独立练习，稍后再连接。"));
+    // 刷新之后 Key 必然没了（它只存内存），所以这一屏每次开页面都会出现。
+    // 有草稿就必须说出来 —— 否则用户写完两句一刷新，只看到「先填写 API Key」，
+    // 会以为白写了。
+    const pending = store.session && !store.session.completed;
+    host.append(node("p", "exp-welcome", pending
+      ? "你有一份未完成的草稿，已经自动保存。点「先独立练习」接着写，或先连接 AI。"
+      : "先填写 API Key 并测试连接，即可使用 AI 提示和优化。也可以先独立练习，稍后再连接。"));
   } else if (picking || !store.session) renderPicker();
   else if (store.session.completed) renderSummary(store.session);
   else renderExercise();
+  restorePanels();
 }
 
 function renderSettings() {
@@ -127,7 +173,7 @@ function renderSettings() {
   key.disabled = Boolean(busy);
   key.addEventListener("input", () => { settingsDraft.apiKey = key.value; });
   keyLabel.append(key);
-  const advanced = node("details", "exp-advanced");
+  const advanced = panel("exp-advanced", "advanced");
   advanced.append(node("summary", "", "高级设置 · 接口地址与模型"));
   for (const [field, label] of [["baseUrl", "API 地址"], ["model", "模型名称"]]) {
     const wrap = node("label", "exp-field", label);
@@ -288,7 +334,7 @@ function renderExercise() {
     count.textContent = `${session.draft.length} / ${MAX_ANSWER} 字符 · 草稿自动保存在本机`;
     const stale = document.getElementById("exp-feedback-stale");
     if (stale) stale.textContent = session.draft !== session.reviewedAnswer ? "你已修改句子，可再次检查当前版本。" : "";
-    save();
+    saveSoon();
   });
   label.append(editor);
   const actions = node("div", "exp-actions");
@@ -298,9 +344,9 @@ function renderExercise() {
     actions.append(action);
   }
   if (busy) actions.append(button("exp-cancel-ai", "取消请求", () => { cancelRequest("请求已取消，原稿已保留。"); render(); }));
-  const local = node("details", "exp-reference");
+  const local = panel("exp-reference", "reference");
   local.append(node("summary", "", "本地提示与参考表达"), node("p", "", task.steps[session.step].hint));
-  const reference = node("details");
+  const reference = panel("", "reference-answer");
   reference.append(node("summary", "", "展开参考句"), node("p", "exp-english", task.steps[session.step].reference),
     node("p", "hint", "这是一种写法，你可以表达不同的信息。"));
   local.append(reference);
@@ -401,7 +447,7 @@ function renderSummary(session, container = host) {
     node("p", "exp-english", task.core), node("p", "exp-eyebrow", "你的最终句子"),
     node("p", "exp-final-sentence", session.steps[2].answer),
     node("p", "hint", `${session.steps.some((item) => item.usedAi) ? "本题使用过 AI 帮助" : "本题未使用 AI"} · ${new Date(session.updatedAt).toLocaleString("zh-CN")}`));
-  const review = node("details", "exp-review");
+  const review = panel("exp-review", `review-${session.id}`);
   review.append(node("summary", "", "回顾三步修改与反馈"));
   session.steps.forEach((attempt, index) => {
     const step = node("section", "exp-review-step");
@@ -425,7 +471,7 @@ function renderRecords() {
   if (!store.records.length) box.append(node("p", "exp-welcome", "还没有完成的句子。写完三步后，会自动保存在这里。"));
   for (const record of store.records) {
     const task = exerciseById(record.exerciseId);
-    const details = node("details", "exp-record");
+    const details = panel("exp-record", `record-${record.id}`);
     details.append(node("summary", "", `${task.core} · ${new Date(record.updatedAt).toLocaleDateString("zh-CN")}`));
     renderSummary(record, details);
     box.append(details);

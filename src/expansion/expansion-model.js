@@ -108,8 +108,13 @@ export function readStore(raw) {
   catch { return cleanStore(null); }
 }
 
+// 只留最近的这些条。和生词本的 NOTE_LIMIT 一个思路：本地存储没有上限的话，
+// 攒够了就写不进去，而且每次落盘都要把整份记录重新序列化一遍 ——
+// 记录越多，打字时那一下就越慢。
+export const RECORD_LIMIT = 50;
+
 export function recordCompleted(records, session) {
   const record = cleanSession(session);
   if (!record?.completed) return records;
-  return [record, ...records.filter((item) => item.id !== record.id)];
+  return [record, ...records.filter((item) => item.id !== record.id)].slice(0, RECORD_LIMIT);
 }
