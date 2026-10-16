@@ -12,11 +12,22 @@ import * as Model from "./reading-model.js";
 import * as Library from "./library.js";
 import { showReader, closeBook } from "./reader.js";
 
-const SAMPLE_URL = "/tests/fixtures/sample.epub";
-const SAMPLE_NAME = "样本：Three Short Pieces";
-// 样本也要有身份，否则它的进度没法记。字节数不好拿，固定填 0 —— 样本是我们
-// 自己生成的，不会偷偷换一个大小不同的版本。
-const SAMPLE_ID = Model.bookId("sample", "sample.epub", 0);
+// 随应用附带的一本书，放在 public/ 里 —— 所以它在不在书架上，跟「有没有选
+// 文件夹」无关：书架永远至少有这么一本，第一次进来也不是空的。
+//
+// 字节数固定填 0：这本书的身份取的是路径，不是内容。真实字节数写死在这里的话，
+// 哪天换一个排版不同的同名 PDF，那个常数会悄悄变成谎话，进度也跟着丢。
+const BUILTIN = {
+  id: Model.bookId("builtin", "little-prince.pdf", 0),
+  folder: "builtin",
+  // name 是真文件名，和本地书架里那些书同一个形状 —— 读书页靠它认扩展名，
+  // 决定走 PDF 还是 EPUB 那条路。书架上显示时前面加「内置」两个字。
+  name: "little-prince.pdf",
+  title: "小王子 The Little Prince",
+  size: 0,
+  builtin: true,
+  url: "/books/little-prince.pdf"
+};
 
 const el = (id) => document.getElementById(id);
 
@@ -76,20 +87,23 @@ function layout() {
   shelfBox.className = "shelf";
   shelfBox.id = "reading-shelf";
 
-  const sampleRow = document.createElement("div");
-  sampleRow.className = "reader-row";
-  const sampleText = document.createElement("p");
-  sampleText.textContent = "内置样本是一本三章的英文小书，用来先跑通整条路。";
-  sampleRow.append(button("reading-sample", "打开样本", openSample), sampleText);
+  // 书架下面这一行专门放提示（还没选文件夹 / 授权过期 / 这个文件夹里没书）。
+  // 和书架分开，是因为书架里永远有那本内置书 —— 提示不该把它挤掉。
+  const noteBox = document.createElement("div");
+  noteBox.id = "reading-note";
 
-  host.append(head, bar, shelfBox, sampleRow);
+  host.append(head, bar, shelfBox, noteBox);
+  // 先把内置书摆上。接书架要问 IndexedDB、可能还要问授权，都是异步的，
+  // 在那之前书架不该是空的。
+  paintBooks([]);
 }
 
-// 书架区只有三种样子：一排书格、一句提示（可能带一个按钮）、或者空着。
-function paintMessage(text, action) {
-  const box = el("reading-shelf");
+// 书架下面的提示只有一个样子：一句话，可能带一个按钮。传空字符串就清掉。
+function paintNote(text, action) {
+  const box = el("reading-note");
   if (!box) return;
   box.textContent = "";
+  if (!text) return;
   const row = document.createElement("div");
   row.className = "shelf-note";
   const line = document.createElement("p");
@@ -110,7 +124,7 @@ function bookCell(book) {
 
   const file = document.createElement("span");
   file.className = "shelf-file-name";
-  file.textContent = book.name;
+  file.textContent = book.builtin ? `内置 · ${book.name}` : book.name;
 
   const progress = document.createElement("span");
   progress.className = "shelf-progress";
@@ -137,7 +151,8 @@ function paintBooks(books) {
   box.textContent = "";
   const grid = document.createElement("div");
   grid.className = "shelf-grid";
-  books.forEach((book) => grid.append(bookCell(book)));
+  // 内置书永远排第一本，本地文件夹里的书接在后面。
+  [BUILTIN].concat(books).forEach((book) => grid.append(bookCell(book)));
   // 补到 3 的整数倍：容器只画上边和左边、每格画自己的右边和下边，
   // 行不满外框就开缝。首页的方格本同一个做法。
   while (grid.children.length % 3 !== 0) grid.append(blankCell());
@@ -165,12 +180,13 @@ async function attach(handle) {
     .map((book) => ({ ...book, handle: handles.get(book.name) }));
 
   setFolderLabel(books.length ? `${handle.name} · ${books.length} 本` : handle.name, "换一个文件夹");
+  paintBooks(books);
 
   if (!books.length) {
-    paintMessage(`这个文件夹里没有能打开的书。支持 ${Model.BOOK_EXTENSIONS.join(" / ").toUpperCase()}。`);
+    paintNote(`这个文件夹里没有能打开的书。支持 ${Model.BOOK_EXTENSIONS.join(" / ").toUpperCase()}。`);
     return;
   }
-  paintBooks(books);
+  paintNote("");
 }
 
 async function connect(handle) {
@@ -179,7 +195,8 @@ async function connect(handle) {
     return true;
   } catch {
     setFolderLabel("", "选择书架文件夹");
-    paintMessage("读不了这个文件夹。它可能被移动或者删掉了，重新选一个。");
+    paintBooks([]);
+    paintNote("读不了这个文件夹。它可能被移动或者删掉了，重新选一个。");
     return false;
   }
 }
@@ -225,7 +242,7 @@ async function restoreShelf() {
     // Firefox / Safari 没有目录选择器。把那条路整个藏掉，别放个点了没反应的按钮。
     const folder = el("reading-folder");
     if (folder) folder.hidden = true;
-    paintMessage("这个浏览器不能选文件夹（Chrome / Edge 可以）。用「选一本书」照样能读，只是不记书架。");
+    paintNote("这个浏览器不能选文件夹（Chrome / Edge 可以）。用「选一本书」照样能读，只是不记书架。");
     return;
   }
 
@@ -236,7 +253,7 @@ async function restoreShelf() {
     handle = null;
   }
   if (!handle) {
-    paintMessage("还没有书架。选一个放着书的文件夹，里面的书会列在这里。");
+    paintNote("还没有书架。选一个放着书的文件夹，里面的书会列在这里。");
     return;
   }
 
@@ -246,7 +263,7 @@ async function restoreShelf() {
   }
   stored = handle;
   setFolderLabel(`上次的书架：${handle.name}`, "换一个文件夹");
-  paintMessage("浏览器要你再确认一次读取权限。", {
+  paintNote("浏览器要你再确认一次读取权限。", {
     id: "reading-reconnect", text: "重新连接", onClick: reconnect
   });
 }
@@ -255,20 +272,24 @@ async function restoreShelf() {
    打开书
    -------------------------------------------------------------------------- */
 
-async function openEntry(book) {
-  try {
-    // 列目录时只取了名字和大小，内容是这一刻才从磁盘读的
-    const file = await book.handle.getFile();
-    await showReader(file, book.title, book.id);
-  } catch {
-    // 列出来之后文件被删掉或者移走了。打不开是故障不是批改，所以不用红色，
-    // 而且书架还留在屏幕上 —— 用户可以直接点别的书。
-    showToast(`打不开《${book.title}》`);
-  }
+// 内置书随应用一起发布，是一段地址，不是磁盘上的文件句柄。取回来包成 File，
+// 之后每一步（按扩展名分流、pdfjs 取 arrayBuffer）都和不内置的书走同一条路。
+async function fetchAsFile(book) {
+  const response = await fetch(book.url);
+  if (!response.ok) throw new Error(`HTTP ${response.status}`);
+  const blob = await response.blob();
+  return new File([blob], book.name, { type: blob.type || "application/octet-stream" });
 }
 
-async function openSample() {
-  await showReader(SAMPLE_URL, SAMPLE_NAME, SAMPLE_ID);
+async function openEntry(book) {
+  try {
+    const source = book.url ? await fetchAsFile(book) : await book.handle.getFile();
+    await showReader(source, book.title, book.id);
+  } catch {
+    // 内置书取不回来（离线、构建漏了文件）、或者本地书列出来之后被删掉或者移走了。
+    // 打不开是故障不是批改，所以不用红色，而且书架还留在屏幕上 —— 可以直接点别的书。
+    showToast(`打不开《${book.title}》`);
+  }
 }
 
 async function onPickFile(event) {

@@ -5,7 +5,7 @@
 //   view:   点它打开哪个页面。"soon" 是三个未开发模块共用的一页。
 const MODULES = [
   { id: "basic", name: "基础练习", note: "打字练习 · 单词听写 · 句子扩写", status: "ready", view: "basic" },
-  { id: "reading", name: "阅读", note: "读自己的书，或内置样本", status: "ready", view: "reading" },
+  { id: "reading", name: "阅读", note: "读自己的书，或《小王子》", status: "ready", view: "reading" },
   { id: "drill", name: "刷题", note: "按题型反复练", status: "soon", view: "soon" },
   { id: "mock", name: "模考", note: "整卷限时模拟", status: "soon", view: "soon" },
   { id: "notebook", name: "生词本", note: "听写里记下的词", status: "ready", view: "notebook" }
