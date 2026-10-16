@@ -616,6 +616,7 @@ td.empty { color: var(--muted); font-family: var(--cjk); text-align: left; }
 
 #typing-view[hidden], #dictation-view[hidden],
 #home-view[hidden], #basic-view[hidden], #notebook-view[hidden], #soon-view[hidden],
+#reading-view[hidden], #reader-view[hidden],
 #subnav[hidden], #view-switch[hidden], .top-actions[hidden], #exit-btn[hidden],
 #dict-stats[hidden], #dict-progress[hidden], #dict-picker[hidden],
 #dict-card[hidden], #dict-report[hidden], #dict-answer[hidden] { display: none; }
@@ -955,6 +956,60 @@ td.empty { color: var(--muted); font-family: var(--cjk); text-align: left; }
 .note-row button { padding: 4px 10px; border-color: var(--rule-soft); font-size: 12.5px; color: var(--ink-2); }
 .note-empty { margin-top: 18px; color: var(--muted); }
 .note-actions { display: flex; align-items: center; gap: 18px; margin-top: 22px; }
+
+/* --------------------------------------------------------------------------
+   阅读 — 读书页
+   书的内容在 foliate-js 自己的 iframe 里，有它自己的排版和主题；下面这些
+   只管我们自己那圈界面，所以照旧是纸面、印线、墨色选中。
+   -------------------------------------------------------------------------- */
+
+.reader-chooser {
+  margin-top: var(--gap);
+  border-top: var(--hair) solid var(--ink);
+}
+
+.reader-row {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 16px 0 17px;
+  border-bottom: var(--hair) solid var(--rule);
+}
+.reader-row p { margin: 0; color: var(--muted); font-size: 13px; }
+
+.reader-bar {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-top: var(--gap);
+  padding-bottom: 10px;
+  border-bottom: var(--hair) solid var(--rule);
+}
+.reader-title { flex: 1; color: var(--ink-2); font-size: 13px; }
+.reader-pos {
+  font-family: var(--mono);
+  font-size: 12.5px;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+/* 高度必须给足 —— foliate 的 paginator 把 iframe 撑成整条多栏再靠位移翻页，
+   容器高度是 0 的话它算不出页，屏幕上就是一片空白。 */
+.reader-stage {
+  margin-top: 16px;
+  height: 68vh;
+  border: var(--hair) solid var(--rule);
+  background: var(--surface);
+}
+.reader-stage foliate-view { display: block; width: 100%; height: 100%; }
+
+/* 打不开一本书 —— 是故障不是批改，所以不用红色 */
+.reader-error {
+  margin: 24px;
+  padding-top: 12px;
+  border-top: var(--hair) solid var(--rule);
+  color: var(--ink);
+}
 
 /* --------------------------------------------------------------------------
    窄屏 — narrow screens

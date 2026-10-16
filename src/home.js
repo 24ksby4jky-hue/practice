@@ -3,6 +3,7 @@ import * as NotebookModel from "./notebook-model.js";
 import * as View from "./view.js";
 import { persistJson } from "./typing/app.js";
 import DictationWords from "./dictation/words/index.js";
+import { showReading } from "./reading/reading.js";
 
 const el = (id) => document.getElementById(id);
 
@@ -243,6 +244,7 @@ function showNotebook() {
 View.register("home", showHome);
 View.register("basic", showBasic);
 View.register("notebook", showNotebook);
+View.register("reading", showReading);
 View.register("soon", showSoon);
 
 fillGrid(el("home-view"), HomeModel.MODULES.map(moduleCell));

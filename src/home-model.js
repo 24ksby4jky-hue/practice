@@ -5,7 +5,7 @@
 //   view:   点它打开哪个页面。"soon" 是三个未开发模块共用的一页。
 const MODULES = [
   { id: "basic", name: "基础练习", note: "打字练习 · 单词听写", status: "ready", view: "basic" },
-  { id: "reading", name: "阅读", note: "读一段英文，回答理解题", status: "soon", view: "soon" },
+  { id: "reading", name: "阅读", note: "读自己的书，或内置样本", status: "ready", view: "reading" },
   { id: "drill", name: "刷题", note: "按题型反复练", status: "soon", view: "soon" },
   { id: "mock", name: "模考", note: "整卷限时模拟", status: "soon", view: "soon" },
   { id: "notebook", name: "生词本", note: "听写里记下的词", status: "ready", view: "notebook" }
@@ -38,12 +38,21 @@ function viewFor(id) {
 }
 
 // 面包屑。祖先段带 view（可点），当前段 view 为 null（是文字，不是按钮）。
-function trailFor(view, moduleId) {
+// extra：占位页传模块 id，读书页传书名。
+function trailFor(view, extra) {
   if (view === "home") return [{ name: ROOT.name, view: null }];
-  if (view === "basic") return [ROOT, { name: moduleById("basic").name, view: null }];
-  if (view === "notebook") return [ROOT, { name: moduleById("notebook").name, view: null }];
+  // 模块页：首页 › 模块名
+  if (view === "basic" || view === "notebook" || view === "reading") {
+    const found = moduleById(view);
+    return [ROOT, { name: found ? found.name : view, view: null }];
+  }
+  // 读书页挂在阅读下面：首页 › 阅读 › 书名
+  if (view === "reader") {
+    return [ROOT, { name: moduleById("reading").name, view: "reading" },
+      { name: extra || "读书", view: null }];
+  }
   if (view === "soon") {
-    const found = moduleById(moduleId);
+    const found = moduleById(extra);
     return [ROOT, { name: found ? found.name : "建设中", view: null }];
   }
   // 打字练习和单词听写挂在基础练习下面，所以路径比别的页面长一段。

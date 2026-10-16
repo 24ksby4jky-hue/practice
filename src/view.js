@@ -12,6 +12,8 @@ const VIEW_CONTAINERS = {
   typing: "typing-view",
   dictation: "dictation-view",
   notebook: "notebook-view",
+  reading: "reading-view",
+  reader: "reader-view",
   soon: "soon-view"
 };
 

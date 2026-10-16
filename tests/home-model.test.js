@@ -22,13 +22,13 @@ test("每个模块都有名字和一句说明，且不重复", () => {
   assert.equal(notes.size, model.MODULES.length);
 });
 
-test("做好的模块是 basic 和 notebook，其余三个待开发", () => {
+test("做好的模块是 basic、reading、notebook，其余两个待开发", () => {
   assert.equal(model.isReady("basic"), true);
+  assert.equal(model.isReady("reading"), true);
   assert.equal(model.isReady("notebook"), true);
-  assert.equal(model.isReady("reading"), false);
   assert.equal(model.isReady("drill"), false);
   assert.equal(model.isReady("mock"), false);
-  assert.equal(model.MODULES.filter((m) => m.status === "ready").length, 2);
+  assert.equal(model.MODULES.filter((m) => m.status === "ready").length, 3);
 });
 
 test("moduleById 命中返回模块，不命中返回 null", () => {
@@ -41,8 +41,8 @@ test("moduleById 命中返回模块，不命中返回 null", () => {
 test("viewFor 决定点这个模块打开哪个页面", () => {
   assert.equal(model.viewFor("basic"), "basic");
   assert.equal(model.viewFor("notebook"), "notebook");
-  // 三个未开发的模块共用同一个占位页
-  assert.equal(model.viewFor("reading"), "soon");
+  assert.equal(model.viewFor("reading"), "reading");
+  // 还没做的两个模块共用同一个占位页
   assert.equal(model.viewFor("drill"), "soon");
   assert.equal(model.viewFor("mock"), "soon");
   assert.equal(model.viewFor("nope"), null);
@@ -81,9 +81,9 @@ test("面包屑：首页自己、基础练习、生词本", () => {
 });
 
 test("面包屑：占位页按是哪个模块取名", () => {
-  assert.deepEqual(model.trailFor("soon", "reading"), [
+  assert.deepEqual(model.trailFor("soon", "drill"), [
     { name: "首页", view: "home" },
-    { name: "阅读", view: null }
+    { name: "刷题", view: null }
   ]);
   assert.deepEqual(model.trailFor("soon", "mock"), [
     { name: "首页", view: "home" },
@@ -93,6 +93,25 @@ test("面包屑：占位页按是哪个模块取名", () => {
   assert.deepEqual(model.trailFor("soon", "nope"), [
     { name: "首页", view: "home" },
     { name: "建设中", view: null }
+  ]);
+});
+
+test("面包屑：阅读模块页，以及读书页要显示书名", () => {
+  assert.deepEqual(model.trailFor("reading"), [
+    { name: "首页", view: "home" },
+    { name: "阅读", view: null }
+  ]);
+  // 读书页挂在阅读下面，最后一段是书名而不是 view 名
+  assert.deepEqual(model.trailFor("reader", "Three Short Pieces"), [
+    { name: "首页", view: "home" },
+    { name: "阅读", view: "reading" },
+    { name: "Three Short Pieces", view: null }
+  ]);
+  // 没给书名也得有东西显示
+  assert.deepEqual(model.trailFor("reader"), [
+    { name: "首页", view: "home" },
+    { name: "阅读", view: "reading" },
+    { name: "读书", view: null }
   ]);
 });
 
