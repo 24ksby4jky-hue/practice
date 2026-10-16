@@ -5,3 +5,5 @@ dist/
 docs/superpowers/
 test-results/
 playwright-report/
+# 由用户自己的 MDX 词库转换；保留在本地，构建时由 Vite 拷贝到 dist。
+public/dictionaries/collins/

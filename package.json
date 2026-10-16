@@ -9,10 +9,12 @@
     "build": "vite build",
     "preview": "vite preview",
     "test": "node --test",
-    "test:browser": "playwright test"
+    "test:browser": "playwright test",
+    "dictionary:import": "node scripts/import-dictionary.mjs"
   },
   "devDependencies": {
     "@playwright/test": "^1.64.1",
+    "js-mdict": "^6.0.8",
     "vite": "^7.1.5"
   },
   "dependencies": {

@@ -19,6 +19,7 @@ import * as View from "../view.js";
 import { showToast } from "../typing/app.js";
 import * as TypingModel from "../typing/typing-model.js";
 import * as Model from "./reading-model.js";
+import { createWorkspace } from "./workspace.js";
 
 // 搜索一次最多收这么多处。一个常见词在大部头里能有几千处，全渲染出来
 // 只会让面板卡住 —— 到头了就停，并说清楚是「前 N 处」。
@@ -32,6 +33,7 @@ const SEARCH_LIMIT = 200;
 const HIGHLIGHT_COLOR = "#14161c";
 
 let view = null;
+let workspace = null;
 let pdfReader = null;
 let openedBook = null;
 let openToken = 0;
@@ -74,18 +76,13 @@ function layout() {
   const bar = document.createElement("div");
   bar.className = "reader-bar";
 
-  const title = document.createElement("span");
-  title.className = "reader-title";
-  title.id = "reader-title";
-
   const pos = document.createElement("span");
   pos.className = "reader-pos";
   pos.id = "reader-pos";
 
   bar.append(
-    title,
     pos,
-    button("reader-toc", "目录", "reader-tool", () => togglePanel("toc")),
+    button("reader-toc", "目录", "reader-tool", () => workspace?.selectTab("toc")),
     button("reader-search", "搜索", "reader-tool", () => togglePanel("search")),
     button("reader-speak", "朗读", "reader-tool", () => togglePanel("tts")),
     button("reader-type", "排版", "reader-tool", () => togglePanel("type")),
@@ -113,7 +110,30 @@ function layout() {
   stage.className = "reader-stage";
   stage.id = "reader-stage";
 
-  host.append(bar, progress, panelBox, stage);
+  workspace = createWorkspace(host, { title: currentLabel, toolbar: bar, stage, overlay: panelBox,
+    onPages: paintBookPages, onToc: paintToc });
+  workspace.shell.append(progress);
+}
+
+function paintBookPages(box) {
+  if (!view?.book) { box.append(hint("正在打开电子书…")); return; }
+  box.append(hint("电子书会随字号与窗口尺寸重新分页，以下按分节定位。"));
+  const count = view.renderer?.pages || 0;
+  if (count) box.append(hint(`当前分节 · 第 ${Math.min(count, (view.renderer?.page || 0) + 1)} / ${count} 屏`));
+  const label = document.createElement("label");
+  label.className = "reader-hint reader-location-label";
+  label.textContent = "全书进度";
+  const range = document.createElement("input");
+  range.type = "range"; range.min = "0"; range.max = "100";
+  range.value = String(Math.round(position ? bookFraction(position) * 100 : 0));
+  range.addEventListener("change", () => { void view.goToFraction(Number(range.value) / 100).catch(() => showToast("无法跳转到该位置")); });
+  label.append(range); box.append(label);
+  view.book.sections.forEach((section, index) => {
+    if (section.linear === "no") return;
+    const item = button(`reader-section-${index}`, `${index + 1}. ${sectionLabel(index) || "分节"}`, "toc-item", () => { void view.goTo(index); });
+    item.classList.toggle("current", position?.section?.current === index);
+    box.append(item);
+  });
 }
 
 function togglePanel(which) {
@@ -630,6 +650,7 @@ function setSpeech(rate) {
 function listenInDoc(doc) {
   if (!doc || doc.__readerListen) return;
   doc.__readerListen = true;
+  workspace?.bindWords(doc, doc, () => !listening);
   doc.addEventListener("click", async (event) => {
     if (!listening) return;
     // 用户正在选文字，别抢这一下
@@ -741,6 +762,8 @@ export function turn(delta) {
 
 export function closeBook() {
   openToken += 1;
+  workspace?.close();
+  workspace = null;
   pdfReader?.close();
   pdfReader = null;
   if (view) {
@@ -826,10 +849,9 @@ export async function openBook(source, label, id) {
     pdfReader = reader;
     return reader.open(source);
   }
-  layout();
-
   currentId = id || null;
   currentLabel = label || "";
+  layout();
   settings = Model.readTypography(localStorage.getItem(Model.TYPOGRAPHY_KEY));
   speech = Model.readSpeech(localStorage.getItem(Model.SPEECH_KEY));
   listening = false;
@@ -844,6 +866,8 @@ export async function openBook(source, label, id) {
     position = event.detail || null;
     paintPosition(position);
     saveProgress(position);
+    workspace?.position(el("reader-pos")?.textContent || "");
+    workspace?.refresh();
     // 「当前读到哪一章」那条高亮跟着走，但只有目录开着时才值得重画
     if (panel === "toc") paintPanel();
   });
