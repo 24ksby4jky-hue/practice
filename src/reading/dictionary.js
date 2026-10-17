@@ -76,6 +76,30 @@ export function dictionaryFragment(html) {
     FORBID_ATTR: ["style", "src", "srcset", "id"] });
 }
 
+export function dictionaryPreview(result) {
+  const fragment = dictionaryFragment(result.entries.map((entry) => entry.html).join("\n"));
+  const first = fragment.querySelector(".C1_explanation_box, .C1_explanation_item") || fragment;
+  const copy = first.cloneNode(true);
+  for (const extra of copy.querySelectorAll(".C1_item_number, .C1_explanation_label, .C1_word_header, .C1_color_bar, ul, .C1_sentence_en")) extra.remove();
+  const text = copy.textContent.replace(/\s+/g, " ").trim();
+  return { meaning: text.length > 240 ? `${text.slice(0, 240)}…` : text,
+    example: fragment.querySelector(".C1_sentence_en")?.textContent.trim() || "" };
+}
+
+export function renderDictionaryEntries(target, result, { links = true } = {}) {
+  target.replaceChildren();
+  for (const entry of result.entries) {
+    const article = document.createElement("article");
+    article.className = "dictionary-entry";
+    article.append(dictionaryFragment(entry.html));
+    for (const link of article.querySelectorAll("a")) {
+      link.removeAttribute("target");
+      if (!links) link.removeAttribute("data-entry");
+    }
+    target.append(article);
+  }
+}
+
 export function wordAtPoint(doc, event) {
   const selection = doc.getSelection?.();
   if (selection && !selection.isCollapsed) return null;

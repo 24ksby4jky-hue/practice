@@ -47,6 +47,27 @@ test("addNote 同一个词重复记不新增，也不刷新 at", () => {
   assert.equal(next[0].meaning, "提示");
 });
 
+test("阅读收藏只保存短释义与书籍来源，不保存整份词条 HTML", () => {
+  const source = { type: "reading", title: "Reading book", query: "children", html: "不要保存" };
+  const next = model.addNote([], { word: "child", meaning: "儿童", source, html: "完整词条" }, 42);
+  assert.deepEqual(next, [{ word: "child", meaning: "儿童", at: 42,
+    source: { type: "reading", title: "Reading book", query: "children" } }]);
+  const duplicate = model.addNote([{ ...next[0], level: 2 }], { word: "Child", meaning: "新释义", source }, 99);
+  assert.equal(duplicate.length, 1);
+  assert.equal(duplicate[0].at, 42);
+  assert.equal(duplicate[0].level, 2);
+});
+
+test("阅读来源优先于听写词表来源，旧生词仍按原方式补齐", () => {
+  const source = { type: "reading", title: "My book", query: "children" };
+  const notes = [{ word: "child", meaning: "儿童", at: 1, source }];
+  const enriched = model.enrich(notes, () => ({ pos: "n." }), { child: { boardName: "听写板块", unit: 1 } });
+  assert.deepEqual(enriched[0].source, source);
+  assert.deepEqual(model.enrich(notes, () => null)[0].source, source);
+  assert.deepEqual(model.addNote([], { word: "a", meaning: "甲", source: { type: "unknown", title: "无效" } }, 3),
+    [{ word: "a", meaning: "甲", at: 3 }]);
+});
+
 test("addNote 到 41 个只留最新 40 个", () => {
   let list = [];
   for (let i = 0; i < 40; i += 1) {

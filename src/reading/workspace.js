@@ -1,5 +1,7 @@
 import * as View from "../view.js";
-import { lookupWord, dictionaryFragment, wordAtPoint } from "./dictionary.js";
+import { lookupWord, dictionaryPreview, renderDictionaryEntries, wordAtPoint } from "./dictionary.js";
+import * as NotebookModel from "../notebook-model.js";
+import { persistJson } from "../typing/app.js";
 
 function node(tag, className, text) {
   const item = document.createElement(tag);
@@ -19,6 +21,7 @@ export function createWorkspace(host, { title, toolbar, stage, overlay, status, 
   let active = "pages";
   let lookupToken = 0;
   let closed = false;
+  let currentResult = null;
   const cleanups = [];
   let sidebarOpen = window.innerWidth > 760;
   try {
@@ -62,7 +65,12 @@ export function createWorkspace(host, { title, toolbar, stage, overlay, status, 
   dictionaryStatus.id = "dictionary-status";
   dictionaryStatus.setAttribute("role", "status");
   const definition = node("div", "dictionary-definition"); definition.id = "dictionary-definition";
-  panels.dictionary.append(dictionaryForm, dictionaryStatus, definition);
+  const save = button("dictionary-save", "加入生词本", saveWord);
+  save.hidden = true;
+  const savedStatus = node("span", "dictionary-save-status");
+  savedStatus.setAttribute("role", "status");
+  const saveBar = node("div", "dictionary-save-bar"); saveBar.append(save, savedStatus);
+  panels.dictionary.append(dictionaryForm, dictionaryStatus, saveBar, definition);
   definition.addEventListener("click", (event) => {
     const link = event.target.closest("a");
     if (!link) return;
@@ -104,10 +112,30 @@ export function createWorkspace(host, { title, toolbar, stage, overlay, status, 
     if (open) setSidebar(true);
     refresh();
   }
+  function savedNotes() { return NotebookModel.readNotes(localStorage.getItem(NotebookModel.NOTE_KEY)); }
+  function updateSave() {
+    const exists = savedNotes().some((note) => note.word.toLowerCase() === currentResult.matched.toLowerCase());
+    save.disabled = exists;
+    save.textContent = exists ? "已加入生词本" : "加入生词本";
+  }
+  function saveWord() {
+    if (closed || !currentResult?.entries.length) return;
+    try {
+      const notes = savedNotes();
+      const next = NotebookModel.addNote(notes, { word: currentResult.matched,
+        meaning: dictionaryPreview(currentResult).meaning,
+        source: { type: "reading", title: title || "未命名书籍", query: currentResult.query } }, Date.now());
+      if (!persistJson(NotebookModel.NOTE_KEY, next)) {
+        savedStatus.textContent = "未能保存，请重试。"; return;
+      }
+      updateSave(); savedStatus.textContent = "已收藏，可在首页的生词本查看。";
+    } catch { savedStatus.textContent = "未能保存，请检查浏览器存储后重试。"; }
+  }
   async function showWord(word) {
     const query = word.trim();
     if (!query || closed) return;
     const token = ++lookupToken;
+    currentResult = null; save.hidden = true; savedStatus.textContent = "";
     selectTab("dictionary");
     input.value = query;
     definition.replaceChildren();
@@ -118,13 +146,10 @@ export function createWorkspace(host, { title, toolbar, stage, overlay, status, 
       if (closed || token !== lookupToken) return;
       if (!result || !result.entries.length) { dictionaryStatus.textContent = `本地词典未收录“${query}”。可输入单词原形再试。`; return; }
       dictionaryStatus.textContent = result.query === result.matched ? result.title : `${result.title} · 词形还原：${result.query} → ${result.matched}`;
-      for (const entry of result.entries) {
-        const article = node("article", "dictionary-entry");
-        article.append(dictionaryFragment(entry.html));
-        // DOMPurify 默认不放行 entry://；显式恢复的站内词条链接只供本地查询。
-        for (const link of article.querySelectorAll("a")) link.removeAttribute("target");
-        definition.append(article);
-      }
+      renderDictionaryEntries(definition, result);
+      currentResult = result;
+      save.hidden = false;
+      updateSave();
     } catch (error) {
       if (!closed && token === lookupToken) dictionaryStatus.textContent = error.message || "查词失败，请稍后重试。";
     }

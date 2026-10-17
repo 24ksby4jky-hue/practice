@@ -1,20 +1,6 @@
 import { test, expect } from "@playwright/test";
 import { dictionaryShard } from "../src/reading/dictionary-model.js";
-
-// 原创小样本，不把用户的词典或书籍内容写进测试。
-const dictionary = { children: [{ word: "children", html: '<p>Children is the plural of <span>child</span>.</p>' }],
-  child: [{ word: "child", html: '<div class="C1_word_header"><span class="C1_word_header_word">child</span></div><div class="C1_explanation_item"><div class="C1_explanation_box">儿童；a young person.</div><ul><li><p class="C1_sentence_en">The child reads a book.</p><p>这个孩子读一本书。</p></li></ul></div>' }],
-  book: [{ word: "book", html: '<div class="C1_word_header"><span class="C1_word_header_word">book</span></div><div class="C1_explanation_item">书；a written work.<ul><li><p class="C1_sentence_en">I chose a new book.</p><p>我选了一本新书。</p></li></ul></div>' }] };
-
-async function dictionaryRoutes(page) {
-  await page.route("**/dictionaries/collins/**", async (route) => {
-    const filename = new URL(route.request().url()).pathname.split("/").pop();
-    if (filename === "manifest.json") return route.fulfill({ json: { version: 1, count: 3, fingerprint: "test", title: "测试英汉词典" } });
-    const shard = filename.replace(".json", "");
-    const rows = Object.fromEntries(Object.entries(dictionary).filter(([word]) => dictionaryShard(word) === shard));
-    await route.fulfill({ json: rows });
-  });
-}
+import { dictionaryRoutes } from "./fixtures/dictionary.js";
 async function openReading(page) {
   await page.goto("/");
   await page.getByRole("button", { name: /阅读.*读自己的书/ }).click();

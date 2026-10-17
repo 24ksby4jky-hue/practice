@@ -30,6 +30,12 @@ function levelOf(note) {
   return LEVEL_IDS.indexOf(value) === -1 ? 0 : value;
 }
 
+function readingSource(source) {
+  if (!source || source.type !== "reading" || typeof source.title !== "string") return null;
+  return { type: "reading", title: source.title.slice(0, 300),
+    query: typeof source.query === "string" ? source.query.slice(0, 100) : "" };
+}
+
 // 传进来的是 localStorage 里的原始字符串，不是解析过的值 ——
 // 解析和形状校验是这个模块的职责，调用方不用各写一遍 try/catch。
 function readNotes(raw) {
@@ -50,12 +56,14 @@ function addNote(list, entry, atMs) {
   const current = (Array.isArray(list) ? list : []).filter(isNote);
   if (!entry || typeof entry !== "object") return current;
   if (typeof entry.word !== "string" || entry.word === "") return current;
-  if (current.some((item) => item.word === entry.word)) return current;
+  if (current.some((item) => item.word.toLowerCase() === entry.word.trim().toLowerCase())) return current;
   const note = {
     word: entry.word,
     meaning: typeof entry.meaning === "string" ? entry.meaning : "",
     at: atMs
   };
+  const source = readingSource(entry.source);
+  if (source) note.source = source;
   return [note, ...current].slice(0, NOTE_LIMIT);
 }
 
@@ -115,7 +123,7 @@ function sourceIndex(boards) {
   return index;
 }
 
-// 存下来的只有 word / meaning / at / level，音标、词性、例句要现查。
+// 保存 word / meaning / at / level，阅读收藏额外记下书名与原词；完整词典注释现查。
 // 查不到就标 missing —— 词表改过之后老词可能已经不在里面了，
 // 但那是用户自己记的，不能默默删掉。
 // sources 是可选的：不给就不往结果里塞 source，老调用方的形状不变。
@@ -125,7 +133,8 @@ function enrich(notes, lookup, sources) {
   const where = sources && typeof sources === "object" ? sources : null;
   return list.map((note) => {
     const base = { word: note.word, meaning: note.meaning, at: note.at, level: levelOf(note) };
-    if (where) base.source = where[note.word] || null;
+    const source = readingSource(note.source);
+    if (source || where) base.source = source || where[note.word] || null;
     const found = find(note.word);
     if (!found) return { ...base, missing: true };
     return {

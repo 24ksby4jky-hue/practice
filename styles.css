@@ -1420,6 +1420,23 @@ td.empty { color: var(--muted); font-family: var(--cjk); text-align: left; }
   .note-body { grid-column: 1 / -1; }
 }
 
+/* 生词本的柯林斯摘要与完整注释。完整词条只在展开时渲染。 */
+.note-word-cell, .note-body { min-width: 0; overflow-wrap: anywhere; }
+.note-dictionary-label { display: block; margin-bottom: 5px; font-size: 12px; color: var(--muted); }
+.note-word-actions { display: flex; flex-direction: column; align-items: flex-end; gap: 8px; }
+.note-expand, .note-retry { padding: 4px 10px; font-size: 12.5px; border-color: var(--rule-soft); }
+.note-retry { margin-top: 8px; }
+.note-full-definition { grid-column: 1 / -1; min-width: 0; padding: 18px 24px; background: var(--surface); border: var(--hair) solid var(--rule); }
+.note-full-definition[hidden] { display: none; }
+.note-full-definition .dictionary-entry { max-width: 760px; }
+.dictionary-save-bar { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin-bottom: 10px; }
+#dictionary-save[hidden] { display: none; }
+.dictionary-save-status { font-size: 12px; color: var(--muted); }
+@media (max-width: 720px) {
+  .note-word-actions { grid-column: 2; grid-row: 2; }
+  .note-full-definition { padding: 12px; }
+}
+
 /* 手机窄屏：模块格收成一列，外框照样闭合（6 格对 1 列整除） */
 @media (max-width: 520px) {
   .module-grid { grid-template-columns: 1fr; }

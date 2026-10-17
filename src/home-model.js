@@ -8,7 +8,7 @@ const MODULES = [
   { id: "reading", name: "阅读", note: "读自己的书，或《小王子》", status: "ready", view: "reading" },
   { id: "drill", name: "刷题", note: "按题型反复练", status: "soon", view: "soon" },
   { id: "mock", name: "模考", note: "整卷限时模拟", status: "soon", view: "soon" },
-  { id: "notebook", name: "生词本", note: "听写里记下的词", status: "ready", view: "notebook" }
+  { id: "notebook", name: "生词本", note: "听写与阅读中收藏的词", status: "ready", view: "notebook" }
 ];
 
 // 基础练习的入口，同时用作面包屑的名称来源。

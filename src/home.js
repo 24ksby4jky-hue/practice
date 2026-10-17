@@ -4,6 +4,8 @@ import * as View from "./view.js";
 import { persistJson } from "./typing/app.js";
 import DictationWords from "./dictation/words/index.js";
 import { showReading } from "./reading/reading.js";
+import { annotationState, loadAnnotation } from "./notebook-dictionary.js";
+import { renderDictionaryEntries } from "./reading/dictionary.js";
 
 const el = (id) => document.getElementById(id);
 
@@ -15,6 +17,9 @@ const BASIC_NOTE = "练输入，练拼写，再把一个句子写完整。";
 let noteFilter = "all";
 let noteQuery = "";
 let noteSort = "time";
+const noteExpanded = new Set();
+let noteDetailsId = 0;
+let noteRefreshPending = false;
 
 /* --------------------------------------------------------------------------
    模块格 —— 一格一个模块，印线共用
@@ -146,13 +151,7 @@ function noteRow(item) {
   word.className = "note-word";
   word.textContent = item.word;
   head.append(word);
-  if (item.missing) {
-    // 词表改过之后这个老词可能已经不在了。标一下，但用户记的东西不删。
-    const gone = document.createElement("span");
-    gone.className = "note-gone";
-    gone.textContent = "词表外";
-    head.append(gone);
-  } else if (item.phonetic) {
+  if (item.phonetic) {
     const phonetic = document.createElement("span");
     phonetic.className = "note-phonetic";
     phonetic.textContent = item.phonetic;
@@ -178,32 +177,70 @@ function noteRow(item) {
     levels.append(pick);
   }
 
-  const body = document.createElement("span");
+  const body = document.createElement("div");
   body.className = "note-body";
+  const annotation = item.annotation;
+  const hasCollins = Boolean(annotation?.preview);
+  const label = document.createElement("span");
+  label.className = "note-dictionary-label";
+  label.textContent = hasCollins ? "柯林斯双解"
+    : annotation?.status === "error" ? "柯林斯暂时无法加载 · 原收藏释义"
+    : annotation?.status === "ready" ? "柯林斯未收录 · 原收藏释义" : "正在读取柯林斯释义…";
+  if (hasCollins && annotation.result.matched !== item.word.toLowerCase()) label.textContent += ` · ${item.word} → ${annotation.result.matched}`;
+  body.append(label);
   const meaning = document.createElement("span");
   meaning.className = "note-meaning";
-  if (!item.missing && item.pos) {
-    const pos = document.createElement("span");
-    pos.className = "note-pos";
-    pos.textContent = item.pos;
-    meaning.append(pos);
-  }
-  meaning.append(document.createTextNode(item.meaning));
+  meaning.textContent = hasCollins || annotation?.status === "error" || annotation?.status === "ready" ? item.meaning || "暂无保存的释义" : "";
   body.append(meaning);
-  if (item.example) {
+  if (annotation?.preview?.example) {
     const example = document.createElement("span");
     example.className = "note-example";
-    example.textContent = item.example;
+    example.textContent = annotation.preview.example;
     body.append(example);
   }
-  // 来源是现查的（见 notebook-model 的 sourceIndex），词表改了它跟着改，
-  // 所以不存在「存了一份过期的」这个问题。
   if (item.source) {
     const source = document.createElement("span");
     source.className = "note-source";
-    source.textContent = `${item.source.boardName} · 第 ${item.source.unit} 单元`;
+    source.textContent = item.source.type === "reading" ? `阅读 · ${item.source.title}`
+      : `${item.source.boardName} · 第 ${item.source.unit} 单元`;
+    if (item.source.type === "reading" && item.source.query && item.source.query !== item.word) source.textContent += ` · 原文：${item.source.query}`;
     body.append(source);
   }
+
+  if (annotation?.status === "error") {
+    const retry = document.createElement("button"); retry.type = "button";
+    retry.className = "note-retry"; retry.textContent = "重新加载柯林斯";
+    retry.addEventListener("click", () => {
+      void loadAnnotation(item.word, { retry: true }).then(refreshNotebookAnnotations);
+      repaintNoteList();
+    });
+    body.append(retry);
+  }
+
+  const full = document.createElement("section");
+  full.className = "note-full-definition dictionary-definition";
+  full.id = `note-full-${++noteDetailsId}`;
+  full.hidden = !noteExpanded.has(item.word);
+  const expand = document.createElement("button"); expand.type = "button";
+  expand.className = "note-expand";
+  expand.setAttribute("aria-controls", full.id);
+  expand.setAttribute("aria-expanded", String(!full.hidden));
+  expand.textContent = full.hidden ? "查看全部注释" : "收起全部注释";
+  expand.disabled = annotation?.status === "ready" && !hasCollins || annotation?.status === "error";
+  function paintFull() {
+    if (full.hidden) return;
+    if (hasCollins) renderDictionaryEntries(full, annotation.result, { links: false });
+    else full.textContent = annotation?.status === "error" ? "柯林斯暂时无法加载，请重试。"
+      : annotation?.status === "ready" ? "柯林斯未收录这个词。" : "正在读取全部注释…";
+  }
+  expand.addEventListener("click", () => {
+    full.hidden = !full.hidden;
+    if (full.hidden) noteExpanded.delete(item.word); else noteExpanded.add(item.word);
+    expand.setAttribute("aria-expanded", String(!full.hidden));
+    expand.textContent = full.hidden ? "查看全部注释" : "收起全部注释";
+    paintFull();
+  });
+  paintFull();
 
   const remove = document.createElement("button");
   remove.type = "button";
@@ -211,10 +248,13 @@ function noteRow(item) {
   remove.textContent = "删除";
   remove.addEventListener("click", () => {
     saveNotes(NotebookModel.removeNote(storedNotes(), item.word));
+    noteExpanded.delete(item.word);
     paintNotebook();
   });
 
-  row.append(head, levels, body, remove);
+  const actions = document.createElement("div"); actions.className = "note-word-actions";
+  actions.append(expand, remove);
+  row.append(head, levels, body, actions, full);
   return row;
 }
 
@@ -222,7 +262,19 @@ function noteRow(item) {
 function notebookData() {
   const index = NotebookModel.wordIndex(DictationWords);
   return NotebookModel.enrich(storedNotes(), (word) => index[word] || null,
-    NotebookModel.sourceIndex(DictationWords));
+    NotebookModel.sourceIndex(DictationWords)).map((note) => {
+      const annotation = annotationState(note.word);
+      return { ...note, annotation, meaning: annotation?.preview?.meaning || note.meaning };
+    });
+}
+
+function refreshNotebookAnnotations() {
+  if (document.body.dataset.view !== "notebook" || noteRefreshPending) return;
+  noteRefreshPending = true;
+  requestAnimationFrame(() => {
+    noteRefreshPending = false;
+    if (document.body.dataset.view === "notebook") repaintNoteList();
+  });
 }
 
 function visibleNotes(all) {
@@ -258,7 +310,7 @@ function paintNotebook() {
   if (!all.length) {
     const empty = document.createElement("p");
     empty.className = "note-empty";
-    empty.textContent = "还没有生词。听写时拼错的词会自动记在这里。";
+    empty.textContent = "还没有生词。可在听写中记入生词，或在阅读查词后点击“加入生词本”。";
     box.append(empty);
     return;
   }
@@ -288,6 +340,7 @@ function paintNotebook() {
       return;
     }
     saveNotes(NotebookModel.clearNotes());
+    noteExpanded.clear();
     paintNotebook();
   });
   actions.append(clear);
@@ -368,8 +421,12 @@ function repaintNoteList() {
 
 function showNotebook() {
   paintNotebook();
-  View.setHeading("生词本", "听写里拼错的词，或你按「记入生词本」留下的词。");
+  View.setHeading("生词本", "收集听写与阅读中的生词，用柯林斯释义和例句复习。");
   View.show("notebook");
+  for (const note of storedNotes()) {
+    if (annotationState(note.word)?.status === "ready" || annotationState(note.word)?.status === "error") continue;
+    void loadAnnotation(note.word).then(refreshNotebookAnnotations);
+  }
 }
 
 /* --------------------------------------------------------------------------
