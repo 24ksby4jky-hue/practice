@@ -82,8 +82,10 @@ export function dictionaryPreview(result) {
   const copy = first.cloneNode(true);
   for (const extra of copy.querySelectorAll(".C1_item_number, .C1_explanation_label, .C1_word_header, .C1_color_bar, ul, .C1_sentence_en")) extra.remove();
   const text = copy.textContent.replace(/\s+/g, " ").trim();
+  const example = fragment.querySelector(".C1_sentence_en");
   return { meaning: text.length > 240 ? `${text.slice(0, 240)}…` : text,
-    example: fragment.querySelector(".C1_sentence_en")?.textContent.trim() || "" };
+    example: example?.textContent.trim() || "",
+    exampleTranslation: example?.nextElementSibling?.textContent.trim() || "" };
 }
 
 export function renderDictionaryEntries(target, result, { links = true } = {}) {

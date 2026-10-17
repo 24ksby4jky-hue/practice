@@ -2,6 +2,8 @@ import * as DictationModel from "./dictation-model.js";
 import * as NotebookModel from "../notebook-model.js";
 import * as View from "../view.js";
 import { persistJson, measureLine } from "../typing/app.js";
+import { annotationState } from "../dictionary-annotations.js";
+import { mountDictationAnnotation } from "./dictation-annotation.js";
 // 板块顺序由 words/index.js 决定 —— 听写和生词本共用同一份，不再靠
 // index.html 里 <script> 标签的加载顺序，也不再挂在 globalThis 上。
 import DictationWords from "./words/index.js";
@@ -29,6 +31,7 @@ const dict = {
 };
 
 const root = document.getElementById("dictation-view");
+let answerAnnotation = null;
 
 function boardById(id) {
   return DictationWords.find((item) => item.id === id) || DictationWords[0];
@@ -52,6 +55,7 @@ function clearAttempt() {
 }
 
 function showPicker() {
+  answerAnnotation?.close(); answerAnnotation = null;
   dict.screen = "picker";
   dict.words = [];
   dict.index = 0;
@@ -79,7 +83,8 @@ function noteList() {
 }
 
 function saveNote(word) {
-  persistJson(NotebookModel.NOTE_KEY, NotebookModel.addNote(noteList(), word, Date.now()));
+  const meaning = annotationState(word.word)?.preview?.meaning || word.meaning;
+  persistJson(NotebookModel.NOTE_KEY, NotebookModel.addNote(noteList(), { ...word, meaning }, Date.now()));
 }
 
 function lettersOf(word) {
@@ -212,22 +217,27 @@ function paintStats() {
 }
 
 function paintAnswer() {
+  answerAnnotation?.close(); answerAnnotation = null;
   const panel = document.getElementById("dict-answer");
   const word = current();
-  panel.hidden = !(dict.complete && word);
-  if (!word || !dict.complete) return;
+  panel.hidden = !(dict.complete && word && !dict.sessionDone);
+  if (panel.hidden) { panel.replaceChildren(); return; }
   panel.innerHTML = `
     <p class="${dict.correct ? "ok-label" : "bad-label"}">${dict.correct ? "正确" : "错误"}</p>
     <h2>${word.word}</h2>
-    <p class="phonetic">${word.phonetic} · ${word.pos} ${word.meaning}</p>
-    <p class="example">${word.example}</p>
+    <p class="phonetic">${word.phonetic}</p>
+    <div id="dict-annotation"></div>
     <div class="dialog-actions">
       <button type="button" id="dict-example">播放例句</button>
       ${dict.correct ? "" : '<button type="button" id="dict-note">记入生词本</button>'}
       <button type="button" id="dict-next" class="primary">下一词</button>
     </div>
   `;
-  document.getElementById("dict-example").addEventListener("click", () => speak(word.example));
+  const exampleButton = document.getElementById("dict-example");
+  answerAnnotation = mountDictationAnnotation(document.getElementById("dict-annotation"), word, (text) => {
+    exampleButton.disabled = !text;
+  });
+  exampleButton.addEventListener("click", () => speak(answerAnnotation?.example()));
   const note = document.getElementById("dict-note");
   if (note) note.addEventListener("click", () => { saveNote(word); goNext(); });
   document.getElementById("dict-next").addEventListener("click", goNext);
@@ -273,9 +283,18 @@ function paintReport() {
 function paintNotes() {
   const box = document.getElementById("dict-notes");
   const list = noteList();
-  box.innerHTML = list.length
-    ? `<h3>生词本</h3><div class="articles">${list.map((item) => `<span class="article"><strong>${item.word}</strong><em>${item.meaning}</em></span>`).join("")}</div>`
-    : "";
+  box.replaceChildren();
+  if (!list.length) return;
+  const heading = document.createElement("h3"); heading.textContent = "生词本";
+  const articles = document.createElement("div"); articles.className = "articles";
+  for (const item of list) {
+    const article = document.createElement("span"); article.className = "article";
+    const word = document.createElement("strong"); word.textContent = item.word;
+    const meaning = document.createElement("em");
+    meaning.textContent = annotationState(item.word)?.preview?.meaning || item.meaning;
+    article.append(word, meaning); articles.append(article);
+  }
+  box.append(heading, articles);
 }
 
 function paint() {
@@ -469,6 +488,7 @@ function onKey(event) {
   }
   if (dict.sessionDone) return;
   if (dict.complete && event.key === "Enter") {
+    if (target?.closest?.("button")) return;
     event.preventDefault();
     if (!dict.correct) saveNote(current());
     goNext();
@@ -515,7 +535,7 @@ function layout() {
         <button type="button" id="dict-us" class="mode">美式</button>
       </div>
       <div id="dict-slots" class="slots"></div>
-      <p class="hint">键入单词拼写，Backspace 可回退，Alt+R 重听。词表是本地原创，发音由浏览器朗读。</p>
+      <p class="hint">键入单词拼写，Backspace 可回退，Alt+R 重听。答题后显示柯林斯注释，发音由浏览器朗读。</p>
       <div class="dialog-actions">
         <button type="button" id="dict-reveal">看答案</button>
         <button type="button" id="dict-back">返回单元</button>

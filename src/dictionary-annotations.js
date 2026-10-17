@@ -1,7 +1,7 @@
 import { lookupWord, dictionaryPreview } from "./reading/dictionary.js";
 import { normalizeDictionaryKey } from "./reading/dictionary-model.js";
 
-// 同时最多查四个词。旧生词本首次打开时也能补齐柯林斯注释，不一次请求整本词库。
+// 听写与生词本共用注释缓存，同时最多查四个词，不一次请求整本词库。
 const states = new Map();
 const queue = [];
 let running = 0;

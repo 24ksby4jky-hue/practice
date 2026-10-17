@@ -4,7 +4,7 @@ import * as View from "./view.js";
 import { persistJson } from "./typing/app.js";
 import DictationWords from "./dictation/words/index.js";
 import { showReading } from "./reading/reading.js";
-import { annotationState, loadAnnotation } from "./notebook-dictionary.js";
+import { annotationState, loadAnnotation } from "./dictionary-annotations.js";
 import { renderDictionaryEntries } from "./reading/dictionary.js";
 
 const el = (id) => document.getElementById(id);
