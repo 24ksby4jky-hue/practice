@@ -27,7 +27,10 @@ const dict = {
   timer: 0,
   accent: "uk",
   started: false,
-  playing: false
+  playing: false,
+  origin: "",
+  notebookWords: null,
+  sessionSource: ""
 };
 
 const root = document.getElementById("dictation-view");
@@ -61,6 +64,9 @@ function showPicker() {
   dict.index = 0;
   dict.started = false;
   dict.sessionDone = false;
+  dict.origin = "";
+  dict.notebookWords = null;
+  dict.sessionSource = "";
   clearAttempt();
   document.getElementById("dict-picker").hidden = false;
   document.getElementById("dict-card").hidden = true;
@@ -73,9 +79,11 @@ function showPicker() {
 function backToUnits() {
   stopTimer();
   stopSpeak();
+  const notebook = dict.origin === "notebook";
   const screen = DictationModel.returnToUnits(dict.boardId);
   dict.boardId = screen.boardId;
   showPicker();
+  if (notebook) View.open("notebook");
 }
 
 function noteList() {
@@ -211,7 +219,8 @@ function paintStats() {
       index: dict.index,
       total: dict.words.length,
       boardName: boardById(dict.boardId).name,
-      unitNumber: dict.unitNumber
+      unitNumber: dict.unitNumber,
+      source: dict.origin === "notebook" ? dict.sessionSource : ""
     })
     : "0 / 0";
 }
@@ -252,9 +261,10 @@ function paintReport() {
   const status = statusOf();
   const accuracy = accuracyOf(dict.results);
   const errors = dict.results.filter((item) => !item.isCorrect);
+  const notebookRound = dict.origin === "notebook" && !dict.review;
   const title = status === "unfinished"
-    ? (dict.review ? "复习未完成" : "练习未完成")
-    : (dict.review ? "复习完成" : "练习完成");
+    ? (notebookRound ? "听写未完成" : dict.review ? "复习未完成" : "练习未完成")
+    : (notebookRound ? "听写完成" : dict.review ? "复习完成" : "练习完成");
   const minute = String(Math.floor(dict.spendSecond / 60)).padStart(2, "0");
   const second = String(dict.spendSecond % 60).padStart(2, "0");
   report.innerHTML = `
@@ -271,12 +281,28 @@ function paintReport() {
     <div class="dialog-actions">
       ${status === "review" ? '<button type="button" id="dict-review" class="primary">复习错词</button>' : ""}
       <button type="button" id="dict-again" class="${status === "review" ? "" : "primary"}">再练一次</button>
-      <button type="button" id="dict-back-report">返回单元</button>
+      <button type="button" id="dict-back-report">${dict.origin === "notebook" ? "返回生词本" : "返回单元"}</button>
     </div>
   `;
   const review = document.getElementById("dict-review");
-  if (review) review.addEventListener("click", () => startReview(errors.map((item) => item.word)));
-  document.getElementById("dict-again").addEventListener("click", () => openUnit(dict.unitNumber));
+  if (review) {
+    review.addEventListener("click", () => {
+      const missed = errors.map((item) => item.word);
+      if (dict.origin === "notebook") {
+        const list = (dict.notebookWords || []).filter((item) => missed.includes(item.word));
+        begin(list, true, "notebook");
+        return;
+      }
+      startReview(missed);
+    });
+  }
+  document.getElementById("dict-again").addEventListener("click", () => {
+    if (dict.origin === "notebook") {
+      begin((dict.notebookWords || []).map((item) => ({ ...item })), false, "notebook");
+      return;
+    }
+    openUnit(dict.unitNumber);
+  });
   document.getElementById("dict-back-report").addEventListener("click", backToUnits);
 }
 
@@ -336,11 +362,11 @@ function loadWord(index) {
   setTimeout(() => { if (current() && !dict.sessionDone) speak(current().word); }, 500);
 }
 
-function begin(words, review) {
+function begin(words, review, kind) {
   stopSpeak();
   dict.words = words;
   dict.review = review;
-  dict.kind = review ? "review" : "unit";
+  dict.kind = kind || (review ? "review" : "unit");
   dict.screen = "session";
   dict.sessionDone = false;
   dict.skipped = false;
@@ -353,8 +379,22 @@ function begin(words, review) {
   document.getElementById("dict-card").hidden = false;
   document.getElementById("dict-report").hidden = true;
   startTimer();
+  const back = document.getElementById("dict-back");
+  if (back) back.textContent = dict.origin === "notebook" ? "返回生词本" : "返回单元";
   if (words.length) loadWord(0);
   else paint();
+}
+
+function startNotebookDictation(words, sourceLabel) {
+  const list = DictationModel.notebookSessionWords(words);
+  if (!list.length) return false;
+  dict.origin = "notebook";
+  dict.notebookWords = list;
+  dict.sessionSource = sourceLabel || DictationModel.notebookDayLabel("");
+  View.setHeading("单词听写", DictationModel.DICTATION_SUBTITLE);
+  begin(list, false, "notebook");
+  View.show("dictation");
+  return true;
 }
 
 function openUnit(unitNumber) {
@@ -596,3 +636,5 @@ document.getElementById("view-typing").addEventListener("click", showTyping);
 // 首页和基础练习从这里进来，走的是同一套复位逻辑
 View.register("typing", showTyping);
 View.register("dictation", showDictation);
+
+export { startNotebookDictation };

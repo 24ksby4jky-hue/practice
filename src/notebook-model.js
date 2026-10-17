@@ -148,6 +148,31 @@ function enrich(notes, lookup, sources) {
   });
 }
 
+// 加入时间落在本地日历的哪一天。坏时间戳给空串，调用方筛不中它。
+function dayOf(at) {
+  if (typeof at !== "number" || !Number.isFinite(at)) return "";
+  const date = new Date(at);
+  if (Number.isNaN(date.getTime())) return "";
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${date.getFullYear()}-${month}-${day}`;
+}
+
+function isCalendarDay(day) {
+  if (typeof day !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(day)) return false;
+  const [year, month, date] = day.split("-").map(Number);
+  const value = new Date(year, month - 1, date);
+  return value.getFullYear() === year && value.getMonth() === month - 1 && value.getDate() === date;
+}
+
+// 某一天加入的全部生词。不看掌握程度，也不看搜索 —— 那是列表的事。
+// 顺序跟传进来的一样，不另排。
+function notesOnDay(notes, day) {
+  if (!isCalendarDay(day)) return [];
+  const list = Array.isArray(notes) ? notes : [];
+  return list.filter((note) => dayOf(note && note.at) === day);
+}
+
 // 筛选。level 传 "all" 或 0/1/2，query 是子串（词和释义都算命中）。
 function filterNotes(notes, level, query) {
   const list = Array.isArray(notes) ? notes : [];
@@ -182,5 +207,5 @@ function sortNotes(notes, by) {
 
 export {
   NOTE_KEY, NOTE_LIMIT, LEVELS, readNotes, levelOf, addNote, removeNote, clearNotes, setLevel,
-  wordIndex, sourceIndex, enrich, filterNotes, countsByLevel, sortNotes
+  wordIndex, sourceIndex, enrich, dayOf, notesOnDay, filterNotes, countsByLevel, sortNotes
 };

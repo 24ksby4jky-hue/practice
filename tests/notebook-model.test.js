@@ -286,6 +286,29 @@ test("搜索命中词，也命中释义；大小写不敏感", () => {
   assert.deepEqual(model.filterNotes(MIXED, "all", "找不到的").map((n) => n.word), []);
 });
 
+test("按加入日筛出当天全部生词，不看掌握程度", () => {
+  const oct17 = new Date(2026, 9, 17, 9, 30).getTime();
+  const oct17late = new Date(2026, 9, 17, 23, 5).getTime();
+  const oct16 = new Date(2026, 9, 16, 23, 59).getTime();
+  const notes = [
+    { word: "alpha", meaning: "甲", at: oct17, level: 2 },
+    { word: "beta", meaning: "乙", at: oct16, level: 0 },
+    { word: "gamma", meaning: "丙", at: oct17late, level: 1 },
+    { word: "delta", meaning: "丁" }
+  ];
+  const day = model.dayOf(oct17);
+  assert.equal(day, "2026-10-17");
+  assert.deepEqual(model.notesOnDay(notes, day).map((note) => note.word), ["alpha", "gamma"]);
+  assert.equal(model.notesOnDay(notes, "2026-10-16").length, 1);
+  assert.deepEqual(model.notesOnDay(notes, "2026-02-31"), []);
+  assert.deepEqual(model.notesOnDay(notes, ""), []);
+  assert.deepEqual(model.notesOnDay(null, day), []);
+  assert.equal(model.dayOf("2026-10-17"), "");
+  const before = notes.map((note) => note.word);
+  model.notesOnDay(notes, day);
+  assert.deepEqual(notes.map((note) => note.word), before);
+});
+
 test("筛选和搜索叠加", () => {
   assert.deepEqual(model.filterNotes(MIXED, 2, "a").map((n) => n.word), ["beta", "delta"]);
   assert.deepEqual(model.filterNotes(MIXED, 1, "乙").map((n) => n.word), []);

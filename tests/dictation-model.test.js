@@ -8,6 +8,7 @@ test("dictation model core behavior", () => {
   assert.equal(model.shouldMarkUnitDone({ kind: "review", resultCount: 20 }), false);
   assert.equal(model.shouldMarkUnitDone({ kind: "unit", resultCount: 19 }), false);
   assert.equal(model.shouldMarkUnitDone({ kind: "unit", resultCount: 21 }), false);
+  assert.equal(model.shouldMarkUnitDone({ kind: "notebook", resultCount: 20 }), false);
 
   const saved = { campus: { "1": true } };
   const next = model.markUnitDone(saved, "charts", 3);
@@ -26,6 +27,21 @@ test("dictation model core behavior", () => {
 
   assert.equal(model.progressLabel({ review: false, index: 2, total: 20, boardName: "校园生活", unitNumber: 7 }), "练习 3 / 20 · 校园生活 · 第 7 组");
   assert.equal(model.progressLabel({ review: true, index: 0, total: 4, boardName: "校园生活", unitNumber: 7 }), "复习 1 / 4 · 校园生活 · 第 7 组");
+  assert.equal(model.progressLabel({ review: false, index: 0, total: 3, source: "2026年10月17日的生词" }), "听写 1 / 3 · 2026年10月17日的生词");
+  assert.equal(model.notebookDayLabel("2026-10-17"), "2026年10月17日的生词");
+  assert.equal(model.notebookDayLabel(""), "当日生词");
+  assert.deepEqual(model.notebookSessionWords([
+    { word: "System", meaning: "体系", phonetic: "/ˈsɪstəm/", pos: "n.", example: "A system." },
+    { word: "system", meaning: "重复" },
+    { word: "part time", meaning: "词组" },
+    { word: "GDP", meaning: "缩写" },
+    { word: "CO2", meaning: "带数字" },
+    { meaning: "没有词" }
+  ]), [
+    { word: "system", meaning: "体系", phonetic: "/ˈsɪstəm/", pos: "n.", example: "A system." },
+    { word: "gdp", meaning: "缩写", phonetic: "", pos: "", example: "" }
+  ]);
+  assert.deepEqual(model.notebookSessionWords(null), []);
   assert.equal(model.DICTATION_SUBTITLE, "听发音，把单词拼进空格。错字母会标红。看答案这一词算错。");
   assert.equal(model.unitDoneKey(), "dictationUnitDone:guest");
 

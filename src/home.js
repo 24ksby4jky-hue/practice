@@ -1,5 +1,7 @@
 import * as HomeModel from "./home-model.js";
 import * as NotebookModel from "./notebook-model.js";
+import * as DictationModel from "./dictation/dictation-model.js";
+import { startNotebookDictation } from "./dictation/dictation.js";
 import * as View from "./view.js";
 import { persistJson } from "./typing/app.js";
 import DictationWords from "./dictation/words/index.js";
@@ -12,11 +14,12 @@ const el = (id) => document.getElementById(id);
 const HOME_NOTE = "选一块开始。练习记录只留在这台设备上。";
 const BASIC_NOTE = "练输入，练拼写，再把一个句子写完整。";
 
-// 生词本的查看状态（筛选 / 搜索 / 排序）。只活在内存里：这是「我这次想看什么」，
-// 不是数据。下次进来从「全部、按时间」重新开始，比记住上次筛到哪一档更好猜。
+// 生词本的查看状态（筛选 / 搜索 / 排序 / 日期）。只活在内存里：这是「我这次想看什么」，
+// 不是数据。下次进来从「全部、按时间、不限日期」重新开始，比记住上次筛到哪一档更好猜。
 let noteFilter = "all";
 let noteQuery = "";
 let noteSort = "time";
+let noteDay = "";
 const noteExpanded = new Set();
 let noteDetailsId = 0;
 let noteRefreshPending = false;
@@ -278,12 +281,20 @@ function refreshNotebookAnnotations() {
 }
 
 function visibleNotes(all) {
+  const dated = noteDay ? NotebookModel.notesOnDay(all, noteDay) : all;
   return NotebookModel.sortNotes(
-    NotebookModel.filterNotes(all, noteFilter, noteQuery), noteSort);
+    NotebookModel.filterNotes(dated, noteFilter, noteQuery), noteSort);
 }
 
-function noteEmptyText() {
-  return noteQuery.trim() ? `没有匹配「${noteQuery.trim()}」的词。` : "这一档还没有词。";
+function dayNotes(all) {
+  if (!noteDay) return [];
+  return NotebookModel.sortNotes(NotebookModel.notesOnDay(all, noteDay), "time");
+}
+
+function noteEmptyText(all) {
+  if (noteQuery.trim()) return `没有匹配「${noteQuery.trim()}」的词。`;
+  if (noteDay && NotebookModel.notesOnDay(all, noteDay).length === 0) return "这一天还没有生词。";
+  return "这一档还没有词。";
 }
 
 function paintNotebook() {
@@ -291,7 +302,8 @@ function paintNotebook() {
   box.textContent = "";
 
   const all = notebookData();
-  const counts = NotebookModel.countsByLevel(all);
+  const bookCounts = NotebookModel.countsByLevel(all);
+  const counts = NotebookModel.countsByLevel(noteDay ? NotebookModel.notesOnDay(all, noteDay) : all);
   const list = visibleNotes(all);
 
   const head = document.createElement("div");
@@ -302,7 +314,7 @@ function paintNotebook() {
   count.className = "hint";
   // 「还要看多少」比「一共多少」有用 —— 记住了的不必再看
   count.textContent = all.length
-    ? `共 ${all.length} 词 · 还要看 ${counts[0] + counts[1]} · 上限 ${NotebookModel.NOTE_LIMIT}`
+    ? `共 ${all.length} 词 · 还要看 ${bookCounts[0] + bookCounts[1]} · 上限 ${NotebookModel.NOTE_LIMIT}`
     : "";
   head.append(title, count);
   box.append(head);
@@ -315,12 +327,12 @@ function paintNotebook() {
     return;
   }
 
-  box.append(noteToolbar(counts));
+  box.append(noteToolbar(counts, all));
 
   if (!list.length) {
     const empty = document.createElement("p");
     empty.className = "note-empty";
-    empty.textContent = noteEmptyText();
+    empty.textContent = noteEmptyText(all);
     box.append(empty);
   } else {
     box.append(noteRows(list));
@@ -356,7 +368,7 @@ function noteRows(list) {
 
 // 筛选 / 搜索 / 排序。这三样回答的都是「我该看哪些词」—— 词攒到几十个之后，
 // 它们比列表本身更值钱。参照的是欧路词典生词本按星级和时间筛的做法。
-function noteToolbar(counts) {
+function noteToolbar(counts, all) {
   const bar = document.createElement("div");
   bar.className = "note-toolbar";
 
@@ -400,7 +412,36 @@ function noteToolbar(counts) {
     paintNotebook();
   });
 
-  bar.append(filters, search, sort);
+  const day = document.createElement("div");
+  day.className = "note-day";
+  const date = document.createElement("input");
+  date.type = "date";
+  date.className = "note-date";
+  date.value = noteDay;
+  date.setAttribute("aria-label", "选择加入日期");
+  date.addEventListener("change", () => {
+    noteDay = date.value;
+    paintNotebook();
+  });
+
+  const sessionWords = DictationModel.notebookSessionWords(dayNotes(all));
+  const dictate = document.createElement("button");
+  dictate.type = "button";
+  dictate.className = "note-dictate";
+  dictate.textContent = "当日生词听写";
+  dictate.disabled = sessionWords.length === 0;
+  dictate.title = !noteDay
+    ? "先选择日期"
+    : sessionWords.length
+      ? `听写这一天的 ${sessionWords.length} 个单词`
+      : "这一天没有可以听写的单词";
+  dictate.addEventListener("click", () => {
+    const words = dayNotes(notebookData());
+    startNotebookDictation(words, DictationModel.notebookDayLabel(noteDay));
+  });
+  day.append(date, dictate);
+
+  bar.append(filters, search, sort, day);
   return bar;
 }
 
@@ -408,14 +449,15 @@ function noteToolbar(counts) {
 function repaintNoteList() {
   const old = el("notebook-view").querySelector(".note-list, .note-empty");
   if (!old) return;
-  const list = visibleNotes(notebookData());
+  const all = notebookData();
+  const list = visibleNotes(all);
   if (list.length) {
     old.replaceWith(noteRows(list));
     return;
   }
   const empty = document.createElement("p");
   empty.className = "note-empty";
-  empty.textContent = noteEmptyText();
+  empty.textContent = noteEmptyText(all);
   old.replaceWith(empty);
 }
 

@@ -77,10 +77,42 @@ function unitRange(unitNumber) {
   return { start, end };
 }
 
-function progressLabel({ review, index, total, boardName, unitNumber }) {
-  const label = review ? "复习" : "练习";
+function progressLabel({ review, index, total, boardName, unitNumber, source }) {
   const current = Math.min(index + 1, total);
+  if (source) {
+    const label = review ? "复习" : "听写";
+    return `${label} ${current} / ${total} · ${source}`;
+  }
+  const label = review ? "复习" : "练习";
   return `${label} ${current} / ${total} · ${boardName} · 第 ${unitNumber} 组`;
+}
+
+// 「2026-10-17」→「2026年10月17日的生词」。日期不合法就退回一个还能读的名字。
+function notebookDayLabel(day) {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(typeof day === "string" ? day : "");
+  if (!match) return "当日生词";
+  return `${Number(match[1])}年${Number(match[2])}月${Number(match[3])}日的生词`;
+}
+
+// 生词本当日听写能拼的词。大写收成小写；词组、缩写和重复的留下不进这一轮。
+function notebookSessionWords(notes) {
+  const list = Array.isArray(notes) ? notes : [];
+  const seen = new Set();
+  const words = [];
+  for (const note of list) {
+    if (!note || typeof note.word !== "string") continue;
+    const word = note.word.trim().toLowerCase();
+    if (!isDictationWord(word) || seen.has(word)) continue;
+    seen.add(word);
+    words.push({
+      word,
+      meaning: typeof note.meaning === "string" ? note.meaning : "",
+      phonetic: typeof note.phonetic === "string" ? note.phonetic : "",
+      pos: typeof note.pos === "string" ? note.pos : "",
+      example: typeof note.example === "string" ? note.example : ""
+    });
+  }
+  return words;
 }
 
 function enterDictation() {
@@ -126,6 +158,8 @@ export {
   isUnitDone,
   unitRange,
   progressLabel,
+  notebookDayLabel,
+  notebookSessionWords,
   enterDictation,
   selectBoard,
   startUnit,

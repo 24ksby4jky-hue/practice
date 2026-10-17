@@ -1023,6 +1023,20 @@ td.empty { color: var(--muted); font-family: var(--cjk); text-align: left; }
 }
 .note-search:focus { outline: none; border-color: var(--ink); }
 .note-sort { padding: 4px 10px; border-color: var(--rule-soft); font-size: 12.5px; color: var(--ink-2); }
+.note-day { display: flex; align-items: center; gap: 8px; }
+.note-date {
+  border: var(--hair) solid var(--rule);
+  background: transparent;
+  border-radius: 0;
+  padding: 4px 8px;
+  font-size: 12.5px;
+  color: var(--ink-2);
+  color-scheme: light;
+}
+.note-date:focus { outline: none; border-color: var(--ink); }
+.note-dictate { padding: 4px 10px; border-color: var(--rule-soft); font-size: 12.5px; color: var(--ink-2); }
+.note-dictate:disabled { opacity: .45; cursor: default; }
+.note-dictate:disabled:hover { border-color: var(--rule-soft); }
 
 /* --------------------------------------------------------------------------
    阅读 — 书架
