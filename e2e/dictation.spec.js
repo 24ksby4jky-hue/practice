@@ -25,8 +25,12 @@ test("答题前不显示或请求注释，答对后显示柯林斯释义、双�
   await enter(page);
   await expect(page.locator("#dict-answer")).toBeHidden();
   expect(requests).toEqual([]);
+  // 听写页下方不再铺生词本：答题前后都不该出现单词或释义
+  expect(await page.locator("#dict-notes").count()).toBe(0);
+  expect(await page.locator("#dictation-view .article").count()).toBe(0);
   await page.keyboard.type("schedule");
   await expect(page.locator("#dict-answer .ok-label")).toHaveText("正确");
+  expect(await page.locator("#dictation-view .article").count()).toBe(0);
   await expect(page.locator(".dict-meaning")).toHaveText("日程；a plan of activities.");
   await expect(page.locator(".dict-collins-example")).toHaveText("The schedule has changed.");
   await expect(page.locator(".dict-example-translation")).toHaveText("日程已经改变。");

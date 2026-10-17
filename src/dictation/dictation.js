@@ -115,10 +115,6 @@ function recordDailyGrade(word, correct) {
   }
 }
 
-function noteList() {
-  return NotebookStore.load().notes;
-}
-
 function saveNote(word) {
   const meaning = annotationState(word.word)?.preview?.meaning || word.meaning;
   NotebookStore.addNote({ ...word, meaning }, Date.now());
@@ -346,38 +342,12 @@ function paintReport() {
   document.getElementById("dict-back-report").addEventListener("click", backToUnits);
 }
 
-function paintNotes() {
-  const box = document.getElementById("dict-notes");
-  const list = noteList();
-  box.replaceChildren();
-  if (!list.length) return;
-  const heading = document.createElement("h3"); heading.textContent = "生词本";
-  const articles = document.createElement("div"); articles.className = "articles";
-  // 生词本不再有 40 条上限了，这里再整本铺出来会卡住每一词的判题重绘。
-  const shown = list.slice(0, 12);
-  for (const item of shown) {
-    const article = document.createElement("span"); article.className = "article";
-    const word = document.createElement("strong"); word.textContent = item.word;
-    const meaning = document.createElement("em");
-    meaning.textContent = annotationState(item.word)?.preview?.meaning || item.meaning;
-    article.append(word, meaning); articles.append(article);
-  }
-  box.append(heading, articles);
-  if (list.length > shown.length) {
-    const more = document.createElement("p");
-    more.className = "hint";
-    more.textContent = `还有 ${list.length - shown.length} 个生词，到生词本里查看。`;
-    box.append(more);
-  }
-}
-
 function paint() {
   paintStats();
   paintSlots();
   paintAnswer();
   paintPlay();
   paintReport();
-  paintNotes();
   document.getElementById("dict-uk").classList.toggle("active", dict.accent === "uk");
   document.getElementById("dict-us").classList.toggle("active", dict.accent === "us");
 }
@@ -676,7 +646,6 @@ function layout() {
       <div id="dict-answer" hidden></div>
     </section>
     <section class="review" id="dict-report" hidden></section>
-    <section id="dict-notes"></section>
   `;
   paintPicker();
   document.getElementById("dict-back").addEventListener("click", backToUnits);

@@ -816,30 +816,6 @@ td.empty { color: var(--muted); font-family: var(--cjk); text-align: left; }
 #dict-annotation-toggle[hidden], #dict-annotation-retry[hidden], #dict-annotation-full[hidden],
 .dict-collins-example[hidden], .dict-example-translation[hidden] { display: none; }
 
-#dict-notes { margin-top: 26px; }
-#dict-notes h3 {
-  margin: 0 0 10px;
-  font-family: var(--cjk);
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--ink-2);
-}
-#dict-notes .articles {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-  gap: 0;
-}
-#dict-notes .article {
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
-  padding: 10px 14px 11px;
-  border-left: var(--hair) solid var(--rule);
-  border-bottom: var(--hair) solid var(--rule);
-}
-#dict-notes .article strong { font-family: var(--mono); font-size: 14px; }
-#dict-notes .article em { font-style: normal; font-size: 12.5px; color: var(--muted); }
-
 #dict-progress {
   margin: 16px 0 0;
   font-family: var(--mono);
