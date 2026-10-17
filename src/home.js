@@ -1,9 +1,10 @@
 import * as HomeModel from "./home-model.js";
 import * as NotebookModel from "./notebook-model.js";
+import * as NotebookStore from "./notebook-store.js";
+import * as Daily from "./notebook-daily-model.js";
 import * as DictationModel from "./dictation/dictation-model.js";
-import { startNotebookDictation } from "./dictation/dictation.js";
+import { startNotebookDictation, startDailyDictation } from "./dictation/dictation.js";
 import * as View from "./view.js";
-import { persistJson } from "./typing/app.js";
 import DictationWords from "./dictation/words/index.js";
 import { showReading } from "./reading/reading.js";
 import { annotationState, loadAnnotation } from "./dictionary-annotations.js";
@@ -23,6 +24,19 @@ let noteDay = "";
 const noteExpanded = new Set();
 let noteDetailsId = 0;
 let noteRefreshPending = false;
+
+// 一次渲染多少行。生词本不再有上限，几千行一次铺出来会卡；
+// 但分页会让人以为词丢了，所以用「显示更多」把剩下的接着加上。
+const NOTE_PAGE = 50;
+// 首屏最多预取多少个词的柯林斯注释 —— 整本预取等于给每个词发一次请求。
+const ANNOTATION_PREFETCH = 40;
+let noteRenderLimit = NOTE_PAGE;
+let pendingImport = null;
+let importStatus = "";
+
+// 4000 词的词表扫一遍就够了，不要每次重绘都重建。
+const WORD_INDEX = NotebookModel.wordIndex(DictationWords);
+const SOURCE_INDEX = NotebookModel.sourceIndex(DictationWords);
 
 /* --------------------------------------------------------------------------
    模块格 —— 一格一个模块，印线共用
@@ -135,11 +149,21 @@ function showSoon(moduleId) {
    -------------------------------------------------------------------------- */
 
 function storedNotes() {
-  return NotebookModel.readNotes(localStorage.getItem(NotebookModel.NOTE_KEY));
+  return NotebookStore.load().notes;
 }
 
-function saveNotes(list) {
-  persistJson(NotebookModel.NOTE_KEY, list);
+// 补音标、词性、例句、来源，再挂上柯林斯注释和复习进度。
+// 只给当前要渲染的那几十行调用 —— 整本补一遍在几千词时会明显卡顿。
+function enrichNote(note) {
+  const found = WORD_INDEX[note.word] || null;
+  const base = NotebookModel.enrich([note], () => found, SOURCE_INDEX)[0];
+  const annotation = annotationState(note.word);
+  return {
+    ...base,
+    review: NotebookModel.reviewOf(note),
+    annotation,
+    meaning: annotation?.preview?.meaning || note.meaning
+  };
 }
 
 function noteRow(item) {
@@ -173,7 +197,7 @@ function noteRow(item) {
     pick.setAttribute("aria-pressed", String(item.level === level.id));
     if (item.level === level.id) pick.classList.add("active");
     pick.addEventListener("click", () => {
-      saveNotes(NotebookModel.setLevel(storedNotes(), item.word, level.id));
+      NotebookStore.setLevel(item.word, level.id);
       // 整页重画：左边那排筛选按钮上的计数也要跟着变
       paintNotebook();
     });
@@ -209,6 +233,14 @@ function noteRow(item) {
     if (item.source.type === "reading" && item.source.query && item.source.query !== item.word) source.textContent += ` · 原文：${item.source.query}`;
     body.append(source);
   }
+
+  // 复习进度：这个词还要不要看、什么时候再看。没有这一行，
+  // 「每日听写」对用户来说就是个黑盒 —— 不知道哪些词被安排了。
+  const review = item.review || NotebookModel.reviewOf(item);
+  const progress = document.createElement("span");
+  progress.className = "note-review";
+  progress.textContent = reviewText(item, review);
+  body.append(progress);
 
   if (annotation?.status === "error") {
     const retry = document.createElement("button"); retry.type = "button";
@@ -250,7 +282,7 @@ function noteRow(item) {
   remove.className = "note-remove";
   remove.textContent = "删除";
   remove.addEventListener("click", () => {
-    saveNotes(NotebookModel.removeNote(storedNotes(), item.word));
+    NotebookStore.remove(item.word);
     noteExpanded.delete(item.word);
     paintNotebook();
   });
@@ -261,14 +293,17 @@ function noteRow(item) {
   return row;
 }
 
-// 补齐音标、词性、例句和来源。三处都要这份数据，所以只写一遍。
-function notebookData() {
-  const index = NotebookModel.wordIndex(DictationWords);
-  return NotebookModel.enrich(storedNotes(), (word) => index[word] || null,
-    NotebookModel.sourceIndex(DictationWords)).map((note) => {
-      const annotation = annotationState(note.word);
-      return { ...note, annotation, meaning: annotation?.preview?.meaning || note.meaning };
-    });
+// 复习进度的一句话。四档：已掌握 / 还没听过 / 今天到期 / 某天到期。
+// 手动标了「记住了」的词不进每日计划，这里要说明白，否则用户会以为漏掉了。
+function reviewText(item, review) {
+  if (item.level === 2) return "已掌握 · 不再进入每日听写";
+  const counters = review.lastAt ? ` · 对 ${review.correct} · 错 ${review.wrong}` : "";
+  if (!review.lastAt) return `新词 · 等待首次听写${counters}`;
+  const stage = `第 ${review.stage + 1} 阶`;
+  if (review.dueDay === "" || review.dueDay <= NotebookModel.todayDay()) return `今天复习 · ${stage}${counters}`;
+  const month = Number(review.dueDay.slice(5, 7));
+  const day = Number(review.dueDay.slice(8, 10));
+  return `${month}月${day}日复习 · ${stage}${counters}`;
 }
 
 function refreshNotebookAnnotations() {
@@ -282,8 +317,17 @@ function refreshNotebookAnnotations() {
 
 function visibleNotes(all) {
   const dated = noteDay ? NotebookModel.notesOnDay(all, noteDay) : all;
+  const needle = noteQuery.trim().toLowerCase();
+  // 搜索也要命中柯林斯现查到的释义：存下来的可能只是当时的简写。
+  // 只在真的在搜索时才拼这一层，平时不复制整张表。
+  const searchable = needle
+    ? dated.map((note) => ({
+      ...note,
+      meaning: `${note.meaning || ""} ${annotationState(note.word)?.preview?.meaning || ""}`
+    }))
+    : dated;
   return NotebookModel.sortNotes(
-    NotebookModel.filterNotes(dated, noteFilter, noteQuery), noteSort);
+    NotebookModel.filterNotes(searchable, noteFilter, needle), noteSort);
 }
 
 function dayNotes(all) {
@@ -301,10 +345,12 @@ function paintNotebook() {
   const box = el("notebook-view");
   box.textContent = "";
 
-  const all = notebookData();
+  const store = NotebookStore.load();
+  const all = store.notes;
   const bookCounts = NotebookModel.countsByLevel(all);
   const counts = NotebookModel.countsByLevel(noteDay ? NotebookModel.notesOnDay(all, noteDay) : all);
   const list = visibleNotes(all);
+  const streak = Daily.streakOf(store, NotebookModel.todayDay());
 
   const head = document.createElement("div");
   head.className = "page-head";
@@ -314,29 +360,30 @@ function paintNotebook() {
   count.className = "hint";
   // 「还要看多少」比「一共多少」有用 —— 记住了的不必再看
   count.textContent = all.length
-    ? `共 ${all.length} 词 · 还要看 ${bookCounts[0] + bookCounts[1]} · 上限 ${NotebookModel.NOTE_LIMIT}`
+    ? `共 ${all.length} 词 · 还要看 ${bookCounts[0] + bookCounts[1]} · 连续 ${streak.current} 天`
     : "";
   head.append(title, count);
   box.append(head);
+
+  box.append(dailyCard(store));
+
+  const warning = storageWarning();
+  if (warning) box.append(warning);
 
   if (!all.length) {
     const empty = document.createElement("p");
     empty.className = "note-empty";
     empty.textContent = "还没有生词。可在听写中记入生词，或在词典、阅读查词后点击“加入生词本”。";
     box.append(empty);
+    box.append(backupBar());
     return;
   }
 
   box.append(noteToolbar(counts, all));
+  box.append(noteListBlock(list, all));
 
-  if (!list.length) {
-    const empty = document.createElement("p");
-    empty.className = "note-empty";
-    empty.textContent = noteEmptyText(all);
-    box.append(empty);
-  } else {
-    box.append(noteRows(list));
-  }
+  const history = historyBlock(store);
+  if (history) box.append(history);
 
   const actions = document.createElement("div");
   actions.className = "note-actions";
@@ -345,18 +392,296 @@ function paintNotebook() {
   clear.textContent = "清空生词本";
   let armed = false;
   clear.addEventListener("click", () => {
-    // 清空是唯一不可撤销的动作，所以要问第二次
+    // 清空是唯一不可撤销的动作，所以要问第二次。听写记录也会一起清掉，
+    // 按钮上要说明白 —— 连续天数消失是预期内的。
     if (!armed) {
       armed = true;
-      clear.textContent = "再点一次确认清空";
+      clear.textContent = "再点一次确认清空（含听写记录）";
       return;
     }
-    saveNotes(NotebookModel.clearNotes());
+    NotebookStore.clear();
     noteExpanded.clear();
+    noteRenderLimit = NOTE_PAGE;
     paintNotebook();
   });
   actions.append(clear);
   box.append(actions);
+  box.append(backupBar());
+}
+
+function noteListBlock(list, all) {
+  const wrap = document.createElement("div");
+  wrap.className = "note-list-wrap";
+  if (!list.length) {
+    const empty = document.createElement("p");
+    empty.className = "note-empty";
+    empty.textContent = noteEmptyText(Array.isArray(all) ? all : []);
+    wrap.append(empty);
+    return wrap;
+  }
+  wrap.append(noteRows(list.slice(0, noteRenderLimit).map(enrichNote)));
+  if (list.length > noteRenderLimit) {
+    const more = document.createElement("button");
+    more.type = "button";
+    more.className = "note-more";
+    more.textContent = `显示更多（还有 ${list.length - noteRenderLimit} 词）`;
+    more.addEventListener("click", () => {
+      noteRenderLimit += NOTE_PAGE;
+      paintNotebook();
+    });
+    wrap.append(more);
+  }
+  return wrap;
+}
+
+/* --------------------------------------------------------------------------
+   每日生词听写
+   -------------------------------------------------------------------------- */
+
+function dailyCard(store) {
+  const today = NotebookModel.todayDay();
+  const status = Daily.dailyStatus(store, today);
+  const streak = Daily.streakOf(store, today);
+
+  const card = document.createElement("section");
+  card.className = "daily-card";
+
+  const head = document.createElement("div");
+  head.className = "daily-head";
+  const title = document.createElement("h3");
+  title.textContent = "每日生词听写";
+  const summary = document.createElement("p");
+  summary.className = "hint";
+  summary.textContent = dailySummary(status);
+  head.append(title, summary);
+  card.append(head);
+
+  const actions = document.createElement("div");
+  actions.className = "daily-actions";
+
+  const start = document.createElement("button");
+  start.type = "button";
+  start.className = "daily-start";
+  start.textContent = status.state === "done" ? "今日已完成"
+    : status.state === "in-progress" ? `继续听写（${status.graded} / ${status.total}）`
+      : "开始今日听写";
+  start.disabled = !status.canStart;
+  start.addEventListener("click", startDaily);
+  actions.append(start);
+
+  // 每日词量只影响下一次建计划；今天已经开始的这一轮不换词。
+  const countLabel = document.createElement("label");
+  countLabel.className = "daily-count";
+  countLabel.append(document.createTextNode("每日"));
+  const count = document.createElement("input");
+  count.type = "number";
+  count.min = String(NotebookModel.DAILY_COUNT_MIN);
+  count.max = String(NotebookModel.DAILY_COUNT_MAX);
+  count.step = "5";
+  count.value = String(status.dailyCount);
+  count.setAttribute("aria-label", "每日听写词量");
+  count.addEventListener("change", () => {
+    NotebookStore.setDailyCount(count.value);
+    paintNotebook();
+  });
+  countLabel.append(count, document.createTextNode("词"));
+  actions.append(countLabel);
+
+  const streakLine = document.createElement("span");
+  streakLine.className = "daily-streak";
+  streakLine.textContent = streak.current
+    ? `连续 ${streak.current} 天 · 最长 ${streak.longest} 天`
+    : `最长 ${streak.longest} 天 · 累计 ${streak.totalDays} 天`;
+  actions.append(streakLine);
+
+  card.append(actions);
+  card.append(calendarBlock(store, today));
+  return card;
+}
+
+function dailySummary(status) {
+  if (status.state === "done") {
+    return `今日已完成 · 正确率 ${status.accuracy}%${status.remaining ? ` · 还剩 ${status.remaining} 词` : ""}`;
+  }
+  if (status.state === "in-progress") {
+    return `已听 ${status.graded} / ${status.total} · 正确率 ${status.accuracy}%`;
+  }
+  if (status.state === "empty") return "今天没有到期或新增的词。去阅读或查词收几个新词吧。";
+  return `新词 ${status.newCount} · 复习 ${status.dueCount} · 今日取 ${Math.min(status.total, status.dailyCount)} 词`;
+}
+
+// 建计划 → 从已判结果续听 → 每个词判完立刻入账。
+// 所有写盘都走 NotebookStore，听写页本身不认识 localStorage。
+function startDaily() {
+  const now = Date.now();
+  const today = NotebookModel.todayDay(now);
+  const store = NotebookStore.load();
+  const { store: next, plan } = Daily.ensurePlan(store, today, now);
+  if (next !== store) NotebookStore.save(next);
+  if (!plan || plan.finishedAt) {
+    paintNotebook();
+    return;
+  }
+  const resume = Daily.resumeState(plan);
+  const words = Daily.dailySessionNotes(next, plan, (word) => WORD_INDEX[word] || null);
+  const started = startDailyDictation({
+    day: today,
+    words,
+    results: resume.results,
+    elapsedSeconds: resume.elapsedSeconds,
+    onGrade(word, correct) {
+      NotebookStore.update((current) => Daily.applyGradeToStore(current, today, word, correct, Date.now()));
+    },
+    onProgress(seconds) {
+      NotebookStore.update((current) => Daily.touchPlan(current, today, seconds));
+    },
+    onFinish({ elapsedSeconds }) {
+      NotebookStore.update((current) => Daily.finishPlan(current, today, Date.now(), elapsedSeconds));
+    }
+  });
+  if (!started) paintNotebook();
+}
+
+function calendarBlock(store, today) {
+  const labels = {
+    done: "已完成", partial: "做了一部分", missed: "有计划没做",
+    started: "今天已开始", none: "没有计划"
+  };
+  const grid = document.createElement("div");
+  grid.className = "daily-calendar";
+  for (const item of Daily.calendarDays(store, today, 30)) {
+    const cell = document.createElement("span");
+    cell.className = `daily-day ${item.state}${item.today ? " today" : ""}`;
+    const text = `${item.day.slice(5)} ${labels[item.state] || ""}`;
+    cell.title = item.accuracy === null || item.accuracy === undefined
+      ? text : `${text} · 正确率 ${item.accuracy}%`;
+    cell.setAttribute("aria-label", cell.title);
+    grid.append(cell);
+  }
+  return grid;
+}
+
+function historyBlock(store) {
+  if (!Array.isArray(store.history) || !store.history.length) return null;
+  const details = document.createElement("details");
+  details.className = "note-history";
+  const summary = document.createElement("summary");
+  summary.textContent = `听写记录 · 最近 ${Math.min(store.history.length, 10)} 次`;
+  details.append(summary);
+  const wrap = document.createElement("div");
+  wrap.className = "daily-history";
+  for (const item of store.history.slice(0, 10)) {
+    const row = document.createElement("p");
+    row.className = "daily-history-row";
+    row.textContent = `${item.day} · ${item.graded} 词 · 正确率 ${item.accuracy}% · ${durationText(item.elapsedSeconds)}`;
+    wrap.append(row);
+  }
+  details.append(wrap);
+  return details;
+}
+
+function durationText(seconds) {
+  const total = Math.max(0, Math.floor(Number(seconds) || 0));
+  return `${Math.floor(total / 60)}:${String(total % 60).padStart(2, "0")}`;
+}
+
+/* --------------------------------------------------------------------------
+   备份
+   -------------------------------------------------------------------------- */
+
+function storageWarning() {
+  const status = NotebookStore.status();
+  let text = "";
+  if (status.pending) {
+    text = "浏览器没能写入本地存储，本次记录只在内存里，刷新会丢失。请先导出备份。";
+  } else if (NotebookStore.sizeWarning()) {
+    text = "生词本已经很大，建议导出备份；本地存储写满后新词会保存失败。";
+  }
+  if (!text) return null;
+  const line = document.createElement("p");
+  line.className = "storage-warning";
+  line.textContent = text;
+  return line;
+}
+
+function backupBar() {
+  const bar = document.createElement("div");
+  bar.className = "note-backup";
+
+  const exportButton = document.createElement("button");
+  exportButton.type = "button";
+  exportButton.textContent = "导出备份";
+  exportButton.title = "把生词、复习进度与听写记录存成一个 JSON 文件";
+  exportButton.addEventListener("click", exportBackup);
+
+  const importButton = document.createElement("button");
+  importButton.type = "button";
+  importButton.textContent = "导入备份";
+  const file = document.createElement("input");
+  file.type = "file";
+  file.accept = "application/json,.json";
+  file.hidden = true;
+  importButton.addEventListener("click", () => file.click());
+  file.addEventListener("change", () => {
+    const picked = file.files && file.files[0];
+    file.value = "";
+    if (picked) void chooseBackup(picked);
+  });
+
+  bar.append(exportButton, importButton, file);
+
+  if (pendingImport) {
+    const confirm = document.createElement("button");
+    confirm.type = "button";
+    confirm.className = "primary";
+    confirm.textContent = "确认合并";
+    confirm.addEventListener("click", confirmImport);
+    bar.append(confirm);
+  }
+  if (importStatus) {
+    const status = document.createElement("span");
+    status.className = "hint";
+    status.textContent = importStatus;
+    bar.append(status);
+  }
+  return bar;
+}
+
+function exportBackup() {
+  const today = NotebookModel.todayDay();
+  NotebookStore.download(NotebookStore.exportText(Date.now()), `dictation-notebook-${today}.json`);
+}
+
+async function chooseBackup(file) {
+  let text = "";
+  try {
+    text = await file.text();
+  } catch {
+    importStatus = "备份文件无法读取。";
+    paintNotebook();
+    return;
+  }
+  const parsed = NotebookStore.parseImport(text);
+  if (!parsed.ok) {
+    pendingImport = null;
+    importStatus = parsed.error || "备份文件无法识别";
+    paintNotebook();
+    return;
+  }
+  pendingImport = parsed.store;
+  importStatus = `将合并 ${parsed.store.notes.length} 个词、${parsed.store.history.length} 天记录。`;
+  paintNotebook();
+}
+
+function confirmImport() {
+  const incoming = pendingImport;
+  if (!incoming) return;
+  const result = NotebookStore.merge(incoming);
+  pendingImport = null;
+  importStatus = result.ok
+    ? `已导入，生词本现有 ${result.store.notes.length} 个词。`
+    : "导入没能写入本地存储，请先导出备份再重试。";
+  paintNotebook();
 }
 
 function noteRows(list) {
@@ -385,6 +710,7 @@ function noteToolbar(counts, all) {
     if (noteFilter === value) tab.classList.add("active");
     tab.addEventListener("click", () => {
       noteFilter = value;
+      noteRenderLimit = NOTE_PAGE;
       paintNotebook();
     });
     filters.append(tab);
@@ -398,6 +724,7 @@ function noteToolbar(counts, all) {
   search.setAttribute("aria-label", "在生词本里搜索");
   search.addEventListener("input", () => {
     noteQuery = search.value;
+    noteRenderLimit = NOTE_PAGE;
     // 只换列表那一块。整页重画会让输入框每敲一个字就掉一次焦点。
     repaintNoteList();
   });
@@ -409,6 +736,7 @@ function noteToolbar(counts, all) {
   sort.title = "切换排序";
   sort.addEventListener("click", () => {
     noteSort = noteSort === "level" ? "time" : "level";
+    noteRenderLimit = NOTE_PAGE;
     paintNotebook();
   });
 
@@ -421,6 +749,7 @@ function noteToolbar(counts, all) {
   date.setAttribute("aria-label", "选择加入日期");
   date.addEventListener("change", () => {
     noteDay = date.value;
+    noteRenderLimit = NOTE_PAGE;
     paintNotebook();
   });
 
@@ -436,7 +765,7 @@ function noteToolbar(counts, all) {
       ? `听写这一天的 ${sessionWords.length} 个单词`
       : "这一天没有可以听写的单词";
   dictate.addEventListener("click", () => {
-    const words = dayNotes(notebookData());
+    const words = dayNotes(storedNotes());
     startNotebookDictation(words, DictationModel.notebookDayLabel(noteDay));
   });
   day.append(date, dictate);
@@ -447,29 +776,33 @@ function noteToolbar(counts, all) {
 
 // 搜索时只换列表那一块 —— 输入框留在原地，焦点和光标都不会丢。
 function repaintNoteList() {
-  const old = el("notebook-view").querySelector(".note-list, .note-empty");
+  const old = el("notebook-view").querySelector(".note-list-wrap");
   if (!old) return;
-  const all = notebookData();
-  const list = visibleNotes(all);
-  if (list.length) {
-    old.replaceWith(noteRows(list));
-    return;
-  }
-  const empty = document.createElement("p");
-  empty.className = "note-empty";
-  empty.textContent = noteEmptyText(all);
-  old.replaceWith(empty);
+  const all = NotebookStore.load().notes;
+  old.replaceWith(noteListBlock(visibleNotes(all), all));
 }
 
 function showNotebook() {
   paintNotebook();
-  View.setHeading("生词本", "收集听写、阅读与词典中的生词，用柯林斯释义和例句复习。");
+  View.setHeading("生词本", "收集听写、阅读与词典中的生词，按每日计划复习。");
   View.show("notebook");
-  for (const note of storedNotes()) {
-    if (annotationState(note.word)?.status === "ready" || annotationState(note.word)?.status === "error") continue;
+  // 只预取首屏要显示的那几十个词，整本预取在几千词时等于发几千次请求。
+  for (const note of visibleNotes(storedNotes()).slice(0, ANNOTATION_PREFETCH)) {
+    const state = annotationState(note.word);
+    if (state?.status === "ready" || state?.status === "error") continue;
     void loadAnnotation(note.word).then(refreshNotebookAnnotations);
   }
 }
+
+// 另一个标签页改了生词本时跟着刷新。正在输入搜索词就不动，
+// 否则列表一换，光标和输入框里的内容都会丢。
+window.addEventListener("storage", (event) => {
+  if (event.key !== NotebookStore.KEY && event.key !== null) return;
+  if (document.body.dataset.view !== "notebook") return;
+  const active = document.activeElement;
+  if (active && (active.tagName === "INPUT" || active.tagName === "TEXTAREA")) return;
+  paintNotebook();
+});
 
 /* --------------------------------------------------------------------------
    接线

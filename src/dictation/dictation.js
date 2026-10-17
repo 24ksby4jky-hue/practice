@@ -1,5 +1,5 @@
 import * as DictationModel from "./dictation-model.js";
-import * as NotebookModel from "../notebook-model.js";
+import * as NotebookStore from "../notebook-store.js";
 import * as View from "../view.js";
 import { persistJson, measureLine } from "../typing/app.js";
 import { annotationState } from "../dictionary-annotations.js";
@@ -30,7 +30,10 @@ const dict = {
   playing: false,
   origin: "",
   notebookWords: null,
-  sessionSource: ""
+  sessionSource: "",
+  daily: null,
+  dailyFinished: false,
+  hooks: null
 };
 
 const root = document.getElementById("dictation-view");
@@ -67,6 +70,9 @@ function showPicker() {
   dict.origin = "";
   dict.notebookWords = null;
   dict.sessionSource = "";
+  dict.daily = null;
+  dict.dailyFinished = false;
+  dict.hooks = null;
   clearAttempt();
   document.getElementById("dict-picker").hidden = false;
   document.getElementById("dict-card").hidden = true;
@@ -79,20 +85,43 @@ function showPicker() {
 function backToUnits() {
   stopTimer();
   stopSpeak();
-  const notebook = dict.origin === "notebook";
+  flushDailyProgress();
+  const notebook = dict.origin === "notebook" || dict.origin === "daily";
   const screen = DictationModel.returnToUnits(dict.boardId);
   dict.boardId = screen.boardId;
   showPicker();
   if (notebook) View.open("notebook");
 }
 
+// 每日听写的用时和进度先落一次盘 —— 切标签页、关浏览器时
+// 不会把这一轮刚开始的时间白白丢掉。
+function flushDailyProgress() {
+  if (dict.kind !== "daily" || dict.sessionDone) return;
+  if (!dict.hooks || typeof dict.hooks.onProgress !== "function") return;
+  try {
+    dict.hooks.onProgress(dict.spendSecond);
+  } catch (error) {
+    console.warn("每日听写进度没能保存", error);
+  }
+}
+
+// 判完一个词立刻告诉每日计划。回调在 home.js 里，这里只管广播。
+function recordDailyGrade(word, correct) {
+  if (dict.kind !== "daily" || !dict.hooks || typeof dict.hooks.onGrade !== "function") return;
+  try {
+    dict.hooks.onGrade(word, correct, dict.spendSecond);
+  } catch (error) {
+    console.warn("每日听写记录没能保存", error);
+  }
+}
+
 function noteList() {
-  return NotebookModel.readNotes(localStorage.getItem(NotebookModel.NOTE_KEY));
+  return NotebookStore.load().notes;
 }
 
 function saveNote(word) {
   const meaning = annotationState(word.word)?.preview?.meaning || word.meaning;
-  persistJson(NotebookModel.NOTE_KEY, NotebookModel.addNote(noteList(), { ...word, meaning }, Date.now()));
+  NotebookStore.addNote({ ...word, meaning }, Date.now());
 }
 
 function lettersOf(word) {
@@ -220,7 +249,7 @@ function paintStats() {
       total: dict.words.length,
       boardName: boardById(dict.boardId).name,
       unitNumber: dict.unitNumber,
-      source: dict.origin === "notebook" ? dict.sessionSource : ""
+      source: dict.origin === "notebook" || dict.origin === "daily" ? dict.sessionSource : ""
     })
     : "0 / 0";
 }
@@ -262,9 +291,10 @@ function paintReport() {
   const accuracy = accuracyOf(dict.results);
   const errors = dict.results.filter((item) => !item.isCorrect);
   const notebookRound = dict.origin === "notebook" && !dict.review;
+  const dailyRound = dict.origin === "daily" && !dict.review;
   const title = status === "unfinished"
-    ? (notebookRound ? "听写未完成" : dict.review ? "复习未完成" : "练习未完成")
-    : (notebookRound ? "听写完成" : dict.review ? "复习完成" : "练习完成");
+    ? (dailyRound ? "每日听写未完成" : notebookRound ? "听写未完成" : dict.review ? "复习未完成" : "练习未完成")
+    : (dailyRound ? "每日听写完成" : notebookRound ? "听写完成" : dict.review ? "复习完成" : "练习完成");
   const minute = String(Math.floor(dict.spendSecond / 60)).padStart(2, "0");
   const second = String(dict.spendSecond % 60).padStart(2, "0");
   report.innerHTML = `
@@ -280,8 +310,8 @@ function paintReport() {
     ${errors.length ? `<p>错词：${errors.map((item) => item.word).join("、")}</p>` : "<p>全部正确</p>"}
     <div class="dialog-actions">
       ${status === "review" ? '<button type="button" id="dict-review" class="primary">复习错词</button>' : ""}
-      <button type="button" id="dict-again" class="${status === "review" ? "" : "primary"}">再练一次</button>
-      <button type="button" id="dict-back-report">${dict.origin === "notebook" ? "返回生词本" : "返回单元"}</button>
+      ${dailyRound ? "" : `<button type="button" id="dict-again" class="${status === "review" ? "" : "primary"}">再练一次</button>`}
+      <button type="button" id="dict-back-report">${dict.origin === "notebook" || dict.origin === "daily" ? "返回生词本" : "返回单元"}</button>
     </div>
   `;
   const review = document.getElementById("dict-review");
@@ -293,16 +323,26 @@ function paintReport() {
         begin(list, true, "notebook");
         return;
       }
+      // 每日听写的错词重练也在当天计划里挑，但不带回调 ——
+      // 同一个词同一天被推进两次档位，复习计划就失真了。
+      if (dict.origin === "daily") {
+        const list = (dict.words || []).filter((item) => missed.includes(item.word));
+        begin(list, true, "daily");
+        return;
+      }
       startReview(missed);
     });
   }
-  document.getElementById("dict-again").addEventListener("click", () => {
-    if (dict.origin === "notebook") {
-      begin((dict.notebookWords || []).map((item) => ({ ...item })), false, "notebook");
-      return;
-    }
-    openUnit(dict.unitNumber);
-  });
+  const again = document.getElementById("dict-again");
+  if (again) {
+    again.addEventListener("click", () => {
+      if (dict.origin === "notebook") {
+        begin((dict.notebookWords || []).map((item) => ({ ...item })), false, "notebook");
+        return;
+      }
+      openUnit(dict.unitNumber);
+    });
+  }
   document.getElementById("dict-back-report").addEventListener("click", backToUnits);
 }
 
@@ -313,7 +353,9 @@ function paintNotes() {
   if (!list.length) return;
   const heading = document.createElement("h3"); heading.textContent = "生词本";
   const articles = document.createElement("div"); articles.className = "articles";
-  for (const item of list) {
+  // 生词本不再有 40 条上限了，这里再整本铺出来会卡住每一词的判题重绘。
+  const shown = list.slice(0, 12);
+  for (const item of shown) {
     const article = document.createElement("span"); article.className = "article";
     const word = document.createElement("strong"); word.textContent = item.word;
     const meaning = document.createElement("em");
@@ -321,6 +363,12 @@ function paintNotes() {
     article.append(word, meaning); articles.append(article);
   }
   box.append(heading, articles);
+  if (list.length > shown.length) {
+    const more = document.createElement("p");
+    more.className = "hint";
+    more.textContent = `还有 ${list.length - shown.length} 个生词，到生词本里查看。`;
+    box.append(more);
+  }
 }
 
 function paint() {
@@ -362,16 +410,24 @@ function loadWord(index) {
   setTimeout(() => { if (current() && !dict.sessionDone) speak(current().word); }, 500);
 }
 
-function begin(words, review, kind) {
+function begin(words, review, kind, options = {}) {
   stopSpeak();
+  const startIndex = Number.isInteger(options.startIndex) ? options.startIndex : 0;
   dict.words = words;
   dict.review = review;
   dict.kind = kind || (review ? "review" : "unit");
   dict.screen = "session";
   dict.sessionDone = false;
   dict.skipped = false;
-  dict.results = [];
-  dict.spendSecond = 0;
+  // 续听：results 是已经判过的连续前缀，下标就是下一个该听的词。
+  dict.results = Array.isArray(options.results) ? options.results.slice() : [];
+  dict.spendSecond = Math.max(0, Math.floor(Number(options.elapsedSeconds) || 0));
+  dict.hooks = {
+    onGrade: typeof options.onGrade === "function" ? options.onGrade : null,
+    onFinish: typeof options.onFinish === "function" ? options.onFinish : null,
+    onProgress: typeof options.onProgress === "function" ? options.onProgress : null
+  };
+  dict.dailyFinished = false;
   dict.started = true;
   document.getElementById("dict-picker").hidden = true;
   document.getElementById("dict-stats").hidden = false;
@@ -380,8 +436,10 @@ function begin(words, review, kind) {
   document.getElementById("dict-report").hidden = true;
   startTimer();
   const back = document.getElementById("dict-back");
-  if (back) back.textContent = dict.origin === "notebook" ? "返回生词本" : "返回单元";
-  if (words.length) loadWord(0);
+  if (back) back.textContent = dict.origin === "notebook" || dict.origin === "daily" ? "返回生词本" : "返回单元";
+  const index = Math.max(0, Math.min(startIndex, words.length));
+  if (words.length && index >= words.length) { finishSession(); return; }
+  if (words.length) loadWord(index);
   else paint();
 }
 
@@ -393,6 +451,29 @@ function startNotebookDictation(words, sourceLabel) {
   dict.sessionSource = sourceLabel || DictationModel.notebookDayLabel("");
   View.setHeading("单词听写", DictationModel.DICTATION_SUBTITLE);
   begin(list, false, "notebook");
+  View.show("dictation");
+  return true;
+}
+
+// 每日生词听写。词表、已判结果和用时都由调用方（生词本）从计划里取，
+// 这里只负责把这轮听写跑起来，并在判词/完成时回调 ——
+// 调度和存储都留在 home.js 那一侧，听写模块不认识 localStorage。
+function startDailyDictation(options = {}) {
+  const { day, words, results, elapsedSeconds, onGrade, onFinish, onProgress } = options;
+  const list = DictationModel.notebookSessionWords(words);
+  if (!list.length) return false;
+  dict.origin = "daily";
+  dict.daily = { day: typeof day === "string" ? day : "" };
+  dict.sessionSource = DictationModel.dailySourceLabel(day);
+  View.setHeading("每日生词听写", "今天的复习词和今天新收的词，按计划听写。");
+  begin(list, false, "daily", {
+    startIndex: Array.isArray(results) ? results.length : 0,
+    results,
+    elapsedSeconds,
+    onGrade,
+    onFinish,
+    onProgress
+  });
   View.show("dictation");
   return true;
 }
@@ -429,6 +510,16 @@ function finishSession() {
       DictationModel.unitDoneKey(),
       DictationModel.markUnitDone(DictationModel.readUnitDone(rawDone()), outcome.boardId, outcome.unitNumber)
     );
+  }
+  // 只报一次。复习错词那一轮没有 onFinish，不会把档位再推进一遍。
+  if (!dict.dailyFinished && dict.kind === "daily"
+    && dict.hooks && typeof dict.hooks.onFinish === "function") {
+    dict.dailyFinished = true;
+    try {
+      dict.hooks.onFinish({ elapsedSeconds: dict.spendSecond });
+    } catch (error) {
+      console.warn("每日听写结果没能保存", error);
+    }
   }
   paint();
 }
@@ -500,6 +591,7 @@ function completeWord() {
   dict.complete = true;
   dict.correct = matched;
   dict.results.push({ word: word.word, isCorrect: matched });
+  recordDailyGrade(word.word, matched);
   paint();
 }
 
@@ -512,6 +604,7 @@ function reveal() {
   dict.correct = false;
   dict.skipped = true;
   dict.results.push({ word: word.word, isCorrect: false });
+  recordDailyGrade(word.word, false);
   paint();
 }
 
@@ -595,6 +688,11 @@ function layout() {
   document.getElementById("dict-us").addEventListener("click", () => { dict.accent = "us"; if (current()) speak(current().word); paint(); });
   document.getElementById("dict-reveal").addEventListener("click", reveal);
   document.addEventListener("keydown", onKey);
+  // 切走或关页面时把这一轮用时存一次，免得刷新后从零开始计。
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "hidden") flushDailyProgress();
+  });
+  window.addEventListener("pagehide", flushDailyProgress);
 }
 
 function showDictation() {
@@ -637,4 +735,4 @@ document.getElementById("view-typing").addEventListener("click", showTyping);
 View.register("typing", showTyping);
 View.register("dictation", showDictation);
 
-export { startNotebookDictation };
+export { startNotebookDictation, startDailyDictation };

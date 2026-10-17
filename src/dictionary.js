@@ -1,6 +1,6 @@
 import * as View from "./view.js";
 import * as Notebook from "./notebook-model.js";
-import { persistJson } from "./typing/app.js";
+import * as NotebookStore from "./notebook-store.js";
 import { normalizeDictionaryKey } from "./reading/dictionary-model.js";
 import { lookupWord, dictionaryPreview, renderDictionaryEntries } from "./reading/dictionary.js";
 
@@ -33,7 +33,7 @@ let currentResult = null;
 let lookupToken = 0;
 
 function savedNotes() {
-  return Notebook.readNotes(localStorage.getItem(Notebook.NOTE_KEY));
+  return NotebookStore.load().notes;
 }
 
 function updateSave() {
@@ -92,11 +92,11 @@ root.querySelector("form").addEventListener("submit", (event) => {
 save.addEventListener("click", () => {
   if (!currentResult) return;
   try {
-    const next = Notebook.addNote(savedNotes(), {
+    const result = NotebookStore.addNote({
       word: currentResult.matched,
       meaning: dictionaryPreview(currentResult).meaning
     }, Date.now());
-    if (!persistJson(Notebook.NOTE_KEY, next)) {
+    if (!result.ok) {
       saveStatus.textContent = "未能保存，请重试。";
       return;
     }

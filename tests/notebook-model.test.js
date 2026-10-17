@@ -4,7 +4,7 @@ import * as model from "../src/notebook-model.js";
 
 test("存储键钉死 —— 改名字等于把用户存的词丢掉", () => {
   assert.equal(model.NOTE_KEY, "dictationNotebook:guest");
-  assert.equal(model.NOTE_LIMIT, 40);
+  assert.equal(model.STORE_VERSION, 2);
 });
 
 test("readNotes 遇到什么坏数据都返回空数组，不抛错", () => {
@@ -68,16 +68,15 @@ test("阅读来源优先于听写词表来源，旧生词仍按原方式补齐",
     [{ word: "a", meaning: "甲", at: 3 }]);
 });
 
-test("addNote 到 41 个只留最新 40 个", () => {
+test("生词本不再截断：加到 200 个也一个不丢", () => {
   let list = [];
-  for (let i = 0; i < 40; i += 1) {
+  for (let i = 0; i < 200; i += 1) {
     list = model.addNote(list, { word: `word${i}`, meaning: `释义${i}` }, i);
   }
-  assert.equal(list.length, 40);
-  const next = model.addNote(list, { word: "最新", meaning: "最新的词" }, 99);
-  assert.equal(next.length, 40);
-  assert.equal(next[0].word, "最新");
-  assert.equal(next.some((item) => item.word === "word0"), false);
+  assert.equal(list.length, 200);
+  assert.equal(list[0].word, "word199");
+  // 以前 slice(0, 40)，最早的那个会被第 41 个词静默挤掉
+  assert.equal(list.some((item) => item.word === "word0"), true);
 });
 
 test("addNote 遇到坏入参不加垃圾条目", () => {
@@ -330,4 +329,163 @@ test("排序不改原数组，坏数据不抛错", () => {
   assert.deepEqual(MIXED.map((n) => n.word), before);
   assert.deepEqual(model.sortNotes(null, "level"), []);
   assert.deepEqual(model.filterNotes(null, 0, "x"), []);
+});
+
+/* --------------------------------------------------------------------------
+   版本化存储
+   -------------------------------------------------------------------------- */
+
+test("旧版裸数组照样能读，v2 对象也认；坏数据一律空库", () => {
+  const legacy = JSON.stringify([{ word: "cue", meaning: "提示", at: 1 }]);
+  const fromLegacy = model.readStore(legacy);
+  assert.equal(fromLegacy.version, 2);
+  assert.deepEqual(fromLegacy.notes, [{ word: "cue", meaning: "提示", at: 1 }]);
+
+  const v2 = JSON.stringify({
+    version: 2,
+    notes: [{ word: "cue", meaning: "提示", at: 1, level: 2,
+      review: { stage: 3, dueDay: "2026-10-20", lastAt: 5, correct: 2, wrong: 1 } }],
+    plans: {},
+    history: [],
+    settings: { dailyCount: 30 }
+  });
+  const store = model.readStore(v2);
+  assert.equal(store.notes[0].review.stage, 3);
+  assert.equal(store.settings.dailyCount, 30);
+  // 越界的每日词量会被夹回 5..60
+  assert.equal(model.readStore(JSON.stringify({ version: 2, settings: { dailyCount: 999 } })).settings.dailyCount, 60);
+
+  assert.deepEqual(model.readStore("不是 JSON"), model.emptyStore());
+  assert.deepEqual(model.readStore(null), model.emptyStore());
+  assert.deepEqual(model.readStore("[]").notes, []);
+});
+
+/* --------------------------------------------------------------------------
+   复习调度
+   -------------------------------------------------------------------------- */
+
+test("老记录没有 review：按加入当天到期", () => {
+  const at = new Date(2026, 9, 17, 9, 0).getTime();
+  assert.deepEqual(model.reviewOf({ word: "cue", meaning: "提示", at }),
+    { stage: 0, dueDay: "2026-10-17", lastAt: 0, correct: 0, wrong: 0 });
+});
+
+test("答对升档，间隔按 1/3/7/15/30 天走，5 档封顶", () => {
+  const base = { word: "cue", meaning: "提示", at: 1 };
+  let note = model.gradeNote(base, true, "2026-10-17", 100);
+  assert.deepEqual([note.review.stage, note.review.dueDay], [1, "2026-10-18"]);
+  note = model.gradeNote(note, true, "2026-10-18", 200);
+  assert.deepEqual([note.review.stage, note.review.dueDay], [2, "2026-10-21"]);
+  note = model.gradeNote(note, true, "2026-10-21", 300);
+  assert.deepEqual([note.review.stage, note.review.dueDay], [3, "2026-10-28"]);
+  for (let i = 0; i < 10; i += 1) {
+    note = model.gradeNote(note, true, "2026-11-01", 400 + i);
+  }
+  assert.equal(note.review.stage, 5);
+  assert.equal(note.review.dueDay, "2026-12-01");
+  assert.equal(note.review.correct, 13);
+});
+
+test("答错退回 0 档、明天再来；手动掌握程度不被覆盖", () => {
+  const note = { word: "cue", meaning: "提示", at: 1, level: 2,
+    review: { stage: 4, dueDay: "2026-11-01", lastAt: 9, correct: 5, wrong: 0 } };
+  const next = model.gradeNote(note, false, "2026-10-17", 100);
+  assert.deepEqual([next.review.stage, next.review.dueDay, next.review.wrong], [0, "2026-10-18", 1]);
+  assert.equal(next.level, 2);
+});
+
+test("gradeNotes 按小写词形一次更新所有重复项", () => {
+  const notes = [
+    { word: "Child", meaning: "儿童", at: 2 },
+    { word: "child", meaning: "小孩", at: 1 },
+    { word: "other", meaning: "别的", at: 0 }
+  ];
+  const next = model.gradeNotes(notes, "CHILD", true, "2026-10-17", 5);
+  assert.equal(next[0].review.stage, 1);
+  assert.equal(next[1].review.stage, 1);
+  assert.equal("review" in next[2], false);
+  // 匹配不到就原样返回，不改数组身份
+  assert.equal(model.gradeNotes(notes, "zzz", true, "2026-10-17", 5), notes);
+});
+
+test("advance:false 只记对错，不动档位", () => {
+  const note = { word: "cue", meaning: "提示", at: 1,
+    review: { stage: 2, dueDay: "2026-10-20", lastAt: 1, correct: 1, wrong: 0 } };
+  const next = model.gradeNote(note, false, "2026-10-17", 100, { advance: false });
+  assert.equal(next.review.stage, 2);
+  assert.equal(next.review.dueDay, "2026-10-20");
+  assert.equal(next.review.wrong, 1);
+});
+
+/* --------------------------------------------------------------------------
+   计划的形状
+   -------------------------------------------------------------------------- */
+
+test("计划清洗：词表只留可听写的词，结果必须是连续前缀", () => {
+  const plan = model.cleanPlan({
+    day: "2026-10-17",
+    words: ["Alpha", "new york", "beta", "alpha"],
+    results: [{ word: "alpha", correct: true }, { word: "beta", correct: true }]
+  }, "2026-10-17");
+  assert.deepEqual(plan.words, ["alpha", "beta"]);
+  assert.deepEqual(plan.results.map((r) => r.word), ["alpha", "beta"]);
+
+  // 结果和词表错位时只保留合法前缀 —— 否则续听下标会跳词
+  const broken = model.cleanPlan({
+    day: "2026-10-17", words: ["a", "b", "c"],
+    results: [{ word: "a", correct: true }, { word: "c", correct: true }]
+  }, "2026-10-17");
+  assert.deepEqual(broken.results.map((r) => r.word), ["a"]);
+
+  assert.equal(model.cleanPlan({ words: ["a"] }, "2026-02-31"), null);
+  assert.equal(model.cleanPlan(null, "2026-10-17"), null);
+});
+
+/* --------------------------------------------------------------------------
+   store 操作
+   -------------------------------------------------------------------------- */
+
+test("store 操作：加词/改档/删除；清空也清计划和历史", () => {
+  let store = model.emptyStore();
+  store = model.addNoteToStore(store, { word: "cue", meaning: "提示" }, 10);
+  assert.equal(store.notes.length, 1);
+  store = model.setLevelInStore(store, "cue", 1);
+  assert.equal(model.levelOf(store.notes[0]), 1);
+  store = model.setDailyCount(store, 99);
+  assert.equal(store.settings.dailyCount, 60);
+  store = model.setDailyCount(store, 1);
+  assert.equal(store.settings.dailyCount, 5);
+  store = model.removeNoteFromStore(store, "cue");
+  assert.equal(store.notes.length, 0);
+
+  const cleared = model.clearNotesInStore({
+    ...model.emptyStore(),
+    notes: [{ word: "a", meaning: "甲", at: 1 }],
+    plans: { "2026-10-17": { day: "2026-10-17", words: ["a"], results: [] } },
+    history: [{ day: "2026-10-16", finishedAt: 1, graded: 3 }],
+    settings: { dailyCount: 30 }
+  });
+  assert.deepEqual(cleared.notes, []);
+  assert.deepEqual(cleared.plans, {});
+  assert.deepEqual(cleared.history, []);
+  assert.equal(cleared.settings.dailyCount, 30);
+});
+
+test("裁剪：90 天前的计划和未来计划丢掉，历史每天一条", () => {
+  const plan = (day) => ({ day, words: ["a"], results: [] });
+  const store = model.pruneStore({
+    ...model.emptyStore(),
+    plans: {
+      "2026-10-17": plan("2026-10-17"),
+      "2026-07-01": plan("2026-07-01"),
+      "2026-12-01": plan("2026-12-01")
+    },
+    history: [
+      { day: "2026-10-16", finishedAt: 1, graded: 2 },
+      { day: "2026-10-16", finishedAt: 9, graded: 3 }
+    ]
+  }, "2026-10-17");
+  assert.deepEqual(Object.keys(store.plans), ["2026-10-17"]);
+  assert.equal(store.history.length, 1);
+  assert.equal(store.history[0].finishedAt, 9);
 });

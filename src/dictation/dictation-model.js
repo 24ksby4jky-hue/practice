@@ -94,6 +94,14 @@ function notebookDayLabel(day) {
   return `${Number(match[1])}年${Number(match[2])}月${Number(match[3])}日的生词`;
 }
 
+// 「2026-10-17」→「每日生词 · 10月17日」。每日听写的来源标签 ——
+// 进度条上不写年份，年份在计划卡片上已经有了。
+function dailySourceLabel(day) {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(typeof day === "string" ? day : "");
+  if (!match) return "每日生词";
+  return `每日生词 · ${Number(match[2])}月${Number(match[3])}日`;
+}
+
 // 生词本当日听写能拼的词。大写收成小写；词组、缩写和重复的留下不进这一轮。
 function notebookSessionWords(notes) {
   const list = Array.isArray(notes) ? notes : [];
@@ -159,6 +167,7 @@ export {
   unitRange,
   progressLabel,
   notebookDayLabel,
+  dailySourceLabel,
   notebookSessionWords,
   enterDictation,
   selectBoard,

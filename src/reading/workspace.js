@@ -1,7 +1,6 @@
 import * as View from "../view.js";
 import { lookupWord, dictionaryPreview, renderDictionaryEntries, wordAtPoint } from "./dictionary.js";
-import * as NotebookModel from "../notebook-model.js";
-import { persistJson } from "../typing/app.js";
+import * as NotebookStore from "../notebook-store.js";
 
 function node(tag, className, text) {
   const item = document.createElement(tag);
@@ -112,7 +111,7 @@ export function createWorkspace(host, { title, toolbar, stage, overlay, status, 
     if (open) setSidebar(true);
     refresh();
   }
-  function savedNotes() { return NotebookModel.readNotes(localStorage.getItem(NotebookModel.NOTE_KEY)); }
+  function savedNotes() { return NotebookStore.load().notes; }
   function updateSave() {
     const exists = savedNotes().some((note) => note.word.toLowerCase() === currentResult.matched.toLowerCase());
     save.disabled = exists;
@@ -121,11 +120,10 @@ export function createWorkspace(host, { title, toolbar, stage, overlay, status, 
   function saveWord() {
     if (closed || !currentResult?.entries.length) return;
     try {
-      const notes = savedNotes();
-      const next = NotebookModel.addNote(notes, { word: currentResult.matched,
+      const result = NotebookStore.addNote({ word: currentResult.matched,
         meaning: dictionaryPreview(currentResult).meaning,
         source: { type: "reading", title: title || "未命名书籍", query: currentResult.query } }, Date.now());
-      if (!persistJson(NotebookModel.NOTE_KEY, next)) {
+      if (!result.ok) {
         savedStatus.textContent = "未能保存，请重试。"; return;
       }
       updateSave(); savedStatus.textContent = "已收藏，可在首页的生词本查看。";

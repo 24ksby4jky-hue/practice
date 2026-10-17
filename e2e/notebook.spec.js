@@ -28,7 +28,8 @@ test("阅读收藏按原形去重、记录书名，刷新后在生词本展开�
   await openBook(page);
   await page.locator("#dictionary-save").click();
   await expect(page.locator("#dictionary-save")).toBeDisabled();
-  const notes = await page.evaluate((key) => JSON.parse(localStorage.getItem(key)), KEY);
+  // 存盘形状从裸数组升级到 v2：词在 notes 里
+  const notes = await page.evaluate((key) => JSON.parse(localStorage.getItem(key)).notes, KEY);
   expect(notes).toHaveLength(1);
   expect(notes[0]).toMatchObject({ word: "child", source: { type: "reading", title: "test", query: "children" } });
   expect(notes[0].meaning).toContain("儿童");
@@ -77,7 +78,8 @@ test("旧生词使用柯林斯摘要，完整注释包含所有义项与例句�
   await expect(row).toHaveCount(1);
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   const stored = await page.evaluate((key) => JSON.parse(localStorage.getItem(key)), KEY);
-  expect(stored).toEqual([{ word: "book", meaning: "原来的简略释义", at: 9, level: 2 }]);
+  expect(stored.version).toBe(2);
+  expect(stored.notes).toEqual([{ word: "book", meaning: "原来的简略释义", at: 9, level: 2 }]);
 });
 
 test("词库加载失败保留旧释义，可重试；未收录的词也不丢失", async ({ page }) => {

@@ -62,7 +62,7 @@ test("看答案后收藏柯林斯摘要，保留听写来源和错误判定", as
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   await page.locator("#dict-note").click();
   await expect(page.locator("#dict-progress")).toContainText("练习 2 / 20");
-  const notes = await page.evaluate(() => JSON.parse(localStorage.getItem("dictationNotebook:guest")));
+  const notes = await page.evaluate(() => JSON.parse(localStorage.getItem("dictationNotebook:guest")).notes);
   expect(notes).toHaveLength(1);
   expect(notes[0]).toMatchObject({ word: "schedule", meaning: "日程；a plan of activities." });
   await expect(page.locator("#dict-stats")).toContainText("0/20");

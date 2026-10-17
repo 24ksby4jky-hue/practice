@@ -1038,6 +1038,87 @@ td.empty { color: var(--muted); font-family: var(--cjk); text-align: left; }
 .note-dictate:disabled { opacity: .45; cursor: default; }
 .note-dictate:disabled:hover { border-color: var(--rule-soft); }
 
+/* 每日生词听写：计划、连续天数、最近 30 天打卡。
+   红只留给批改，日历里「有计划没做」用虚线和灰，不用红。 */
+.daily-card {
+  margin-top: 18px;
+  padding: 16px 18px;
+  border: var(--hair) solid var(--rule);
+  background: var(--surface);
+}
+.daily-head h3 { margin: 0 0 4px; font-size: 15px; }
+.daily-head .hint { margin: 0; }
+.daily-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 14px;
+  margin-top: 12px;
+}
+.daily-start { padding: 6px 14px; border-color: var(--ink); }
+.daily-start:disabled { opacity: .45; cursor: default; }
+.daily-start:disabled:hover { border-color: var(--ink); }
+.daily-count { display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px; color: var(--ink-2); }
+.daily-count input {
+  width: 58px;
+  border: var(--hair) solid var(--rule);
+  background: transparent;
+  border-radius: 0;
+  padding: 3px 6px;
+  font-size: 12.5px;
+  color: var(--ink);
+}
+.daily-count input:focus { outline: none; border-color: var(--ink); }
+.daily-streak { font-size: 12.5px; color: var(--muted); }
+.daily-calendar {
+  display: grid;
+  grid-template-columns: repeat(15, 1fr);
+  gap: 4px;
+  margin-top: 14px;
+}
+.daily-day {
+  aspect-ratio: 1;
+  border: var(--hair) solid var(--rule-soft);
+  background: transparent;
+}
+.daily-day.done { background: var(--ink); border-color: var(--ink); }
+.daily-day.partial { background: repeating-linear-gradient(45deg, var(--rule) 0 2px, transparent 2px 4px); }
+.daily-day.missed { border-style: dashed; border-color: var(--rule); }
+.daily-day.started { border-color: var(--ink); border-width: 2px; }
+.daily-day.today { outline: 2px solid var(--ink); outline-offset: 2px; }
+.note-history { margin-top: 22px; font-size: 12.5px; color: var(--ink-2); }
+.note-history summary { cursor: pointer; color: var(--muted); }
+.daily-history { margin-top: 8px; }
+.daily-history-row { margin: 4px 0; font-variant-numeric: tabular-nums; }
+.note-review { display: block; margin-top: 6px; font-size: 12px; color: var(--muted); }
+.note-more {
+  display: block;
+  width: 100%;
+  margin-top: 14px;
+  padding: 8px 12px;
+  border-color: var(--rule-soft);
+  font-size: 12.5px;
+  color: var(--ink-2);
+}
+.storage-warning {
+  margin-top: 14px;
+  padding: 8px 12px;
+  border-left: 2px solid var(--ink);
+  background: var(--surface);
+  font-size: 12.5px;
+  color: var(--ink-2);
+}
+.note-backup {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+  margin-top: 18px;
+  padding-top: 14px;
+  border-top: var(--hair) solid var(--rule-soft);
+}
+.note-backup button { padding: 4px 10px; border-color: var(--rule-soft); font-size: 12.5px; color: var(--ink-2); }
+
 /* --------------------------------------------------------------------------
    阅读 — 书架
    一格一本书，沿用首页方格本的做法：容器只画上边和左边、每格画自己的右边和
@@ -1458,6 +1539,9 @@ td.empty { color: var(--muted); font-family: var(--cjk); text-align: left; }
 @media (max-width: 720px) {
   .note-word-actions { grid-column: 2; grid-row: 2; }
   .note-full-definition { padding: 12px; }
+  .daily-calendar { grid-template-columns: repeat(10, 1fr); }
+  .daily-actions { align-items: flex-start; }
+  .note-backup { align-items: flex-start; }
 }
 
 /* 手机窄屏：模块格收成一列，外框照样闭合（6 格对 1 列整除） */

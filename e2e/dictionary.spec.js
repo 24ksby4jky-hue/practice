@@ -97,5 +97,5 @@ test("连续查询时较早的慢响应不会覆盖新结果", async ({ page }) 
   await expect(page.locator("#lexicon-query")).toHaveValue("library");
   await expect(page.locator("#lexicon-definition")).toContainText("图书馆");
   await page.locator("#lexicon-save").click();
-  expect(await page.evaluate(() => JSON.parse(localStorage.getItem("dictationNotebook:guest"))[0].word)).toBe("library");
+  expect(await page.evaluate(() => JSON.parse(localStorage.getItem("dictationNotebook:guest")).notes[0].word)).toBe("library");
 });
