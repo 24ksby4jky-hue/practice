@@ -7,4 +7,5 @@
 import "./typing/app.js";
 import "./dictation/dictation.js";
 import "./expansion/expansion.js";
+import "./dictionary.js";
 import "./home.js";

@@ -13,6 +13,7 @@ const VIEW_CONTAINERS = {
   dictation: "dictation-view",
   expansion: "expansion-view",
   notebook: "notebook-view",
+  dictionary: "dictionary-view",
   reading: "reading-view",
   reader: "reader-view",
   soon: "soon-view"

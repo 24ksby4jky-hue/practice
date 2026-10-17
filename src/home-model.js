@@ -6,6 +6,7 @@
 const MODULES = [
   { id: "basic", name: "基础练习", note: "打字练习 · 单词听写 · 句子扩写", status: "ready", view: "basic" },
   { id: "reading", name: "阅读", note: "读自己的书，或《小王子》", status: "ready", view: "reading" },
+  { id: "dictionary", name: "词典", note: "查柯林斯释义与例句，收藏生词", status: "ready", view: "dictionary" },
   { id: "drill", name: "刷题", note: "按题型反复练", status: "soon", view: "soon" },
   { id: "mock", name: "模考", note: "整卷限时模拟", status: "soon", view: "soon" },
   { id: "notebook", name: "生词本", note: "听写与阅读中收藏的词", status: "ready", view: "notebook" }
@@ -43,7 +44,7 @@ function viewFor(id) {
 function trailFor(view, extra) {
   if (view === "home") return [{ name: ROOT.name, view: null }];
   // 模块页：首页 › 模块名
-  if (view === "basic" || view === "notebook" || view === "reading") {
+  if (view === "basic" || view === "notebook" || view === "reading" || view === "dictionary") {
     const found = moduleById(view);
     return [ROOT, { name: found ? found.name : view, view: null }];
   }

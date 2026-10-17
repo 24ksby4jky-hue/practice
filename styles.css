@@ -615,7 +615,7 @@ td.empty { color: var(--muted); font-family: var(--cjk); text-align: left; }
    -------------------------------------------------------------------------- */
 
 #typing-view[hidden], #dictation-view[hidden],
-#home-view[hidden], #basic-view[hidden], #notebook-view[hidden], #soon-view[hidden],
+#home-view[hidden], #basic-view[hidden], #notebook-view[hidden], #dictionary-view[hidden], #soon-view[hidden],
 #reading-view[hidden], #reader-view[hidden], #expansion-view[hidden],
 #subnav[hidden], #view-switch[hidden], .top-actions[hidden], #exit-btn[hidden],
 #dict-stats[hidden], #dict-progress[hidden], #dict-picker[hidden],
@@ -1510,6 +1510,15 @@ body[data-view="reader"] #reader-view { height: 100%; }
 .dictionary-search { display: flex; align-items: center; gap: 8px; }
 .dictionary-search input { width: 0; min-width: 0; flex: 1; padding: 9px; font-size: 13px; background: var(--paper); border: 1px solid var(--rule); }
 .dictionary-search .reader-tool { flex-shrink: 0; }
+#dictionary-view { max-width: 820px; margin: 0 auto; }
+.lexicon-search { margin: 28px 0 16px; flex-wrap: wrap; }
+.lexicon-search .lexicon-label { flex-basis: 100%; font-size: 13px; color: var(--ink-2); }
+.lexicon-search input { padding: 12px; font-size: 16px; }
+.lexicon-search button { padding: 12px 22px; }
+.lexicon-save-bar { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; margin: 18px 0; }
+#lexicon-save[hidden] { display: none; }
+#lexicon-definition { padding-bottom: 24px; }
+#lexicon-definition .dictionary-entry { font-size: 16px; }
 .dictionary-definition { overflow-wrap: anywhere; }
 .dictionary-entry { font-size: 14px; line-height: 1.8; }
 .dictionary-entry + .dictionary-entry { margin-top: 22px; border-top: 1px solid var(--rule); padding-top: 18px; }

@@ -2,11 +2,11 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import * as model from "../src/home-model.js";
 
-test("首页有 5 个模块，顺序固定", () => {
+test("首页有 6 个模块，顺序固定", () => {
   assert.deepEqual(model.MODULES.map((m) => m.id),
-    ["basic", "reading", "drill", "mock", "notebook"]);
+    ["basic", "reading", "dictionary", "drill", "mock", "notebook"]);
   assert.deepEqual(model.MODULES.map((m) => m.name),
-    ["基础练习", "阅读", "刷题", "模考", "生词本"]);
+    ["基础练习", "阅读", "词典", "刷题", "模考", "生词本"]);
 });
 
 test("每个模块都有名字和一句说明，且不重复", () => {
@@ -22,13 +22,18 @@ test("每个模块都有名字和一句说明，且不重复", () => {
   assert.equal(notes.size, model.MODULES.length);
 });
 
-test("做好的模块是 basic、reading、notebook，其余两个待开发", () => {
+test("做好的模块是 basic、reading、dictionary、notebook，其余两个待开发", () => {
   assert.equal(model.isReady("basic"), true);
   assert.equal(model.isReady("reading"), true);
+  assert.equal(model.isReady("dictionary"), true);
+  assert.equal(model.viewFor("dictionary"), "dictionary");
+  assert.deepEqual(model.trailFor("dictionary"), [
+    { name: "首页", view: "home" }, { name: "词典", view: null }
+  ]);
   assert.equal(model.isReady("notebook"), true);
   assert.equal(model.isReady("drill"), false);
   assert.equal(model.isReady("mock"), false);
-  assert.equal(model.MODULES.filter((m) => m.status === "ready").length, 3);
+  assert.equal(model.MODULES.filter((m) => m.status === "ready").length, 4);
 });
 
 test("moduleById 命中返回模块，不命中返回 null", () => {

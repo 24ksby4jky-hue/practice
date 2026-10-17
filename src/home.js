@@ -310,7 +310,7 @@ function paintNotebook() {
   if (!all.length) {
     const empty = document.createElement("p");
     empty.className = "note-empty";
-    empty.textContent = "还没有生词。可在听写中记入生词，或在阅读查词后点击“加入生词本”。";
+    empty.textContent = "还没有生词。可在听写中记入生词，或在词典、阅读查词后点击“加入生词本”。";
     box.append(empty);
     return;
   }
@@ -421,7 +421,7 @@ function repaintNoteList() {
 
 function showNotebook() {
   paintNotebook();
-  View.setHeading("生词本", "收集听写与阅读中的生词，用柯林斯释义和例句复习。");
+  View.setHeading("生词本", "收集听写、阅读与词典中的生词，用柯林斯释义和例句复习。");
   View.show("notebook");
   for (const note of storedNotes()) {
     if (annotationState(note.word)?.status === "ready" || annotationState(note.word)?.status === "error") continue;
