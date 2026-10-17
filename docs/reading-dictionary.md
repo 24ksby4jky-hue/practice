@@ -30,6 +30,9 @@ Vite 会将 `public/dictionaries/collins/` 原样拷贝到 `dist/dictionaries/co
 部署时发布完整 `dist/`，包括词典分片与 PDF 字体、解码器等资源。
 仅推送代码不会把本机词库同步到服务器。
 
+线上“选择书架文件夹”需要支持目录选择器的浏览器（例如 Chrome / Edge）和 HTTPS。
+普通 HTTP 地址仍可使用“选一本书”和内置书；本机 localhost 开发不受 HTTP 限制。
+
 ## 验证
 
 ```powershell

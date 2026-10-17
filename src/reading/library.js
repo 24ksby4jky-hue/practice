@@ -5,9 +5,8 @@
 // 把文件夹句柄存下来让下次接着用。所有判断（哪些文件算书、书名怎么取、
 // 一本书的身份是什么）都在 reading-model.js 里，那部分才是有测试的。
 //
-// 平台差异：File System Access API 只有 Chromium 系有。Firefox / Safari 里
-// window.showDirectoryPicker 是 undefined —— supported() 问的就是这个，
-// 调用方拿 false 就走单选文件的降级路径。
+// 平台差异：目录选择器需要浏览器支持和安全连接。普通 HTTP 和不支持的浏览器里
+// window.showDirectoryPicker 是 undefined；调用方拿 false 就走单文件的降级路径。
 //
 // 书本身从来不进这里：不复制、不上传。我们只拿一个指向本地文件夹的句柄，
 // 读的时候现从磁盘取。

@@ -1,7 +1,7 @@
 import * as DictationModel from "./dictation-model.js";
 import * as NotebookModel from "../notebook-model.js";
 import * as View from "../view.js";
-import { persistJson } from "../typing/app.js";
+import { persistJson, measureLine } from "../typing/app.js";
 // 板块顺序由 words/index.js 决定 —— 听写和生词本共用同一份，不再靠
 // index.html 里 <script> 标签的加载顺序，也不再挂在 globalThis 上。
 import DictationWords from "./words/index.js";

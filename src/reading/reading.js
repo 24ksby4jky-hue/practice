@@ -4,8 +4,8 @@
 // 句柄（IndexedDB，见 library.js），读的时候现从磁盘取。所以关掉页面再打开，
 // 书架还在，只是浏览器可能要你再确认一次读取权限。
 //
-// 选择文件夹（showDirectoryPicker）只有 Chromium 系有。Firefox / Safari 里
-// 那条路整个不存在，降级成下面那个「选一本书」：能读、能翻页，只是不记书架。
+// 选择文件夹需要支持 showDirectoryPicker 的浏览器及安全连接（HTTPS / localhost）。
+// 普通 HTTP 或不支持的浏览器降级成「选一本书」：能读、能翻页，只是不记书架。
 import * as View from "../view.js";
 import { showToast } from "../typing/app.js";
 import * as Model from "./reading-model.js";
@@ -239,10 +239,12 @@ async function restoreShelf() {
   stored = null;
 
   if (!Library.supported()) {
-    // Firefox / Safari 没有目录选择器。把那条路整个藏掉，别放个点了没反应的按钮。
+    // 普通 HTTP 和不支持的浏览器均不暴露目录选择器，提示需区分原因。
     const folder = el("reading-folder");
     if (folder) folder.hidden = true;
-    paintNote("这个浏览器不能选文件夹（Chrome / Edge 可以）。用「选一本书」照样能读，只是不记书架。");
+    paintNote(window.isSecureContext
+      ? "这个浏览器不能选文件夹，可尝试使用 Chrome / Edge。用「选一本书」照样能读，只是不记书架。"
+      : "选择书架文件夹需要安全连接，请使用 HTTPS 地址。可先用「选一本书」继续阅读，只是不记书架。");
     return;
   }
 

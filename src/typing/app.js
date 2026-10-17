@@ -914,5 +914,5 @@ applyArticle(0);
 // showToast 从阅读模块也要用（书架连接失败、书打不开）—— 全 app 只有这一条
 // 提示条，别再抄一份出来。
 export {
-  persistJson, showToast, pauseTypingClock, resumeTypingClock, closeTypingOverlays, setNavigateAway
+  persistJson, measureLine, showToast, pauseTypingClock, resumeTypingClock, closeTypingOverlays, setNavigateAway
 };

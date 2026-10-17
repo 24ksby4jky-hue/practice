@@ -25,6 +25,22 @@ async function openMarkdown(page) {
     buffer: Buffer.from("# Reading\n\nChildren read books.\n\n## Another section\n\nA book opens a new world.\n") });
   await expect(page.locator("#reader-next")).toBeEnabled();
 }
+
+for (const secure of [false, true]) {
+  test(`目录选择器不可用时区分 HTTP 限制与浏览器能力，并保留单文件阅读（secure=${secure}）`, async ({ page }) => {
+    await page.addInitScript((value) => {
+      Object.defineProperty(window, "isSecureContext", { value });
+      Object.defineProperty(window, "showDirectoryPicker", { value: undefined });
+    }, secure);
+    await openReading(page);
+    await expect(page.locator("#reading-folder")).toBeHidden();
+    await expect(page.locator("#reading-note")).toContainText(secure ? "这个浏览器不能选文件夹" : "HTTPS");
+    await expect(page.locator("#reading-file")).toBeEnabled();
+    await page.locator("#reading-file").setInputFiles({ name: "local.md", mimeType: "text/markdown", buffer: Buffer.from("# Local book\n\nReading still works.") });
+    await expect(page.locator("#reader-next")).toBeEnabled();
+    await expect(page.locator("#reader-title")).toHaveText("local");
+  });
+}
 function pdfBuffer() {
   const objects = ["<< /Type /Catalog /Pages 2 0 R >>", "<< /Type /Pages /Kids [3 0 R 5 0 R] /Count 2 >>"];
   for (let index = 0; index < 2; index += 1) {
